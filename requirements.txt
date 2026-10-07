@@ -1,0 +1,7 @@
+Django==6.1.2
+djangorestframework==3.18.3
+httpx==0.28.1
+python-dotenv==1.1.1
+
+# The shared settings helpers, installed from this repo.
+-e .
