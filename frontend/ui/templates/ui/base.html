@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}AXE // Developer Portfolio{% endblock %}</title>
+
+<!-- Tailwind's CDN build is dev-only by its own docs and is unversioned,
+     so it cannot carry an SRI hash. Swap it for a compiled stylesheet
+     before this is treated as a production deployment. -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"
+        integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
+        crossorigin="anonymous"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --void:#07070a; --panel:#111118; --line:#2a2a38;
+    --neon:#ff2d55; --ember:#ff6b1a; --gold:#ffc83d; --ice:#22d3ee;
+    --text:#e8e8f0; --muted:#8b8ba3;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--void); color:var(--text);
+    font-family:'Share Tech Mono',ui-monospace,monospace;
+    margin:0; overflow-x:hidden;
+  }
+  .display{font-family:'Press Start 2P',monospace; line-height:1.6; letter-spacing:.02em}
+
+  /* CRT scanlines + vignette, purely decorative */
+  body::before{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:9999;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);
+    mix-blend-mode:multiply;
+  }
+  body::after{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:9998;
+    background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.75) 100%);
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .flicker{animation:flicker 4.5s infinite}
+  }
+  @keyframes flicker{0%,97%,100%{opacity:1}98%{opacity:.78}99%{opacity:.9}}
+
+  /* HUD panel with corner brackets */
+  .hud{position:relative; background:linear-gradient(160deg,rgba(17,17,24,.92),rgba(7,7,10,.92)); border:1px solid var(--line)}
+  .hud::before,.hud::after{
+    content:''; position:absolute; width:14px; height:14px; border:2px solid var(--neon);
+  }
+  .hud::before{top:-1px; left:-1px; border-right:0; border-bottom:0}
+  .hud::after{bottom:-1px; right:-1px; border-left:0; border-top:0}
+  .hud:hover{border-color:#3d3d52}
+
+  .neon-text{color:var(--neon); text-shadow:0 0 8px rgba(255,45,85,.65)}
+  .gold-text{color:var(--gold); text-shadow:0 0 8px rgba(255,200,61,.5)}
+  .ice-text{color:var(--ice)}
+
+  .tag{
+    display:inline-block; padding:2px 8px; font-size:11px; letter-spacing:.08em;
+    border:1px solid var(--line); color:var(--muted); background:rgba(0,0,0,.4);
+  }
+  .card:hover .tag{border-color:var(--ember); color:var(--gold)}
+
+  .card{transition:transform .18s ease, box-shadow .18s ease}
+  .card:hover{transform:translateY(-4px); box-shadow:0 0 0 1px var(--ember),0 12px 34px -12px rgba(255,107,26,.5)}
+
+  .btn{
+    font-family:'Press Start 2P',monospace; font-size:10px; padding:10px 14px;
+    border:1px solid var(--line); color:var(--muted); background:rgba(0,0,0,.35);
+    cursor:pointer; transition:all .15s ease; letter-spacing:.05em;
+  }
+  .btn:hover{color:var(--gold); border-color:var(--ember); box-shadow:0 0 12px -2px rgba(255,107,26,.6)}
+  .btn[aria-pressed="true"]{color:var(--void); background:var(--gold); border-color:var(--gold)}
+
+  .xp-track{height:6px; background:#1b1b26; border:1px solid var(--line); overflow:hidden}
+  .xp-fill{height:100%; background:linear-gradient(90deg,var(--neon),var(--ember),var(--gold))}
+
+  .htmx-request #grid{opacity:.35; transition:opacity .1s}
+  a{color:inherit}
+  ::selection{background:var(--ember); color:#000}
+</style>
+</head>
+<body>
+{% block content %}{% endblock %}
+</body>
+</html>
