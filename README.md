@@ -89,7 +89,44 @@ cd frontend && ../.venv/bin/python manage.py test                     # 14 tests
 ```
 
 The frontend tests use `SimpleTestCase` and mock the API layer, so they never
-need the backend running.
+need the backend running. All three suites need a `.env` to exist first — the
+settings are fail-closed, so without one they refuse to start rather than fall
+back to a known key.
+
+## Linting
+
+`ruff` covers the whole tree in one pass. `pylint` cannot: there are two Django
+projects here, each with its own settings module, and neither is importable from
+the repo root. So it runs once per target, naming the settings that target needs.
+
+Run all of these **from the repository root** — the pylint config puts both
+service directories on `sys.path` using paths relative to it.
+
+```bash
+.venv/bin/python -m ruff check .
+
+.venv/bin/python -m pylint --django-settings-module=mysite.settings        portfolio_shared
+.venv/bin/python -m pylint --django-settings-module=mysite.settings        backend
+.venv/bin/python -m pylint --django-settings-module=frontend_site.settings frontend
+```
+
+Each must score `10.00/10`.
+
+Linting both services in a single invocation instead reports `R0801`
+duplicate-code between them, in three places: the two `manage.py` files, the two
+`TEMPLATES` blocks, and the two i18n blocks (`LANGUAGE_CODE`, `TIME_ZONE`,
+`USE_I18N`, `USE_TZ`). All three are Django's own generated scaffolding, present
+in every Django project, and merging them would be the wrong abstraction — the
+`TEMPLATES` blocks are not even identical, since only the backend needs the auth
+and messages context processors for the admin.
+
+What that report must **not** be used to excuse is hand-written duplication. The
+settings contract the two projects genuinely share — loading `.env`, then
+deriving `DEBUG`, then the signing key *from* `DEBUG`, then the host allowlist —
+is wiring this repository wrote, not scaffolding Django generated, so it lives
+in `portfolio_shared.env.environment_settings()` and each `settings.py` calls it
+in one line. It was duplicated until that extraction, and splitting the lint runs
+would have hidden it rather than fixed it.
 
 ## Deploying
 
