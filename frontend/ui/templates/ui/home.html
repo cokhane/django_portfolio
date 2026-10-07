@@ -1,0 +1,112 @@
+{% extends "ui/base.html" %}
+
+{% block content %}
+<!-- ░░ NAV ░░ -->
+<nav class="sticky top-0 z-50 backdrop-blur" style="background:rgba(7,7,10,.82);border-bottom:1px solid var(--line)">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <a href="#home" class="display text-xs neon-text flicker">AXE<span class="gold-text">.DEV</span></a>
+    <div class="flex gap-4 text-xs" style="color:var(--muted)">
+      <a href="#about" class="hover:text-white">ABOUT</a>
+      <a href="#projects" class="hover:text-white">PROJECTS</a>
+      <a href="#contact" class="hover:text-white">CONTACT</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ░░ HERO ░░ -->
+<section id="home" class="max-w-6xl mx-auto px-4 pt-20 pb-16">
+  <p class="text-xs mb-4 ice-text">&gt; booting portfolio.exe ...</p>
+  <h1 class="display text-2xl sm:text-4xl mb-5 leading-snug">
+    <span class="neon-text">DEVELOPER</span><br>
+    <span class="gold-text">&amp; DESIGNER</span>
+  </h1>
+  <p class="text-base max-w-xl mb-8" style="color:var(--muted)">
+    Full-stack engineer building production systems with Django, modern
+    frontends and cloud infrastructure. Press START.
+  </p>
+  <div class="flex flex-wrap gap-3">
+    <a href="#projects" class="btn" aria-pressed="true">▶ VIEW PROJECTS</a>
+    <a href="#contact" class="btn">✉ CONTACT</a>
+  </div>
+
+  <div class="mt-10 flex flex-wrap items-center gap-3 text-xs" style="color:var(--muted)">
+    <span class="tag" style="border-color:{% if api_online %}var(--ice){% else %}var(--neon){% endif %};
+      color:{% if api_online %}var(--ice){% else %}var(--neon){% endif %}">
+      {% if api_online %}● API ONLINE{% else %}● API OFFLINE{% endif %}
+    </span>
+    <span>SYSTEM TIME :: {% now "Y-m-d H:i" %} UTC</span>
+  </div>
+</section>
+
+<!-- ░░ ABOUT / SKILLS ░░ -->
+<section id="about" class="max-w-6xl mx-auto px-4 py-16">
+  <h2 class="display text-sm neon-text mb-8">// ABOUT</h2>
+  <div class="grid gap-6 lg:grid-cols-2">
+    <div class="hud p-6">
+      <p class="text-sm leading-relaxed mb-4" style="color:var(--muted)">
+        I design and ship full-stack products end to end — API design, data
+        modelling, frontend craft and the deployment pipeline underneath.
+      </p>
+      <p class="text-sm leading-relaxed" style="color:var(--muted)">
+        This site is itself the architecture: a Django REST API serving JSON,
+        and a separate Django frontend consuming it over httpx.
+      </p>
+    </div>
+
+    <div class="hud p-6">
+      <h3 class="display text-xs gold-text mb-5">CORE SKILLS</h3>
+      {% for skill in skills %}
+        <div class="mb-4">
+          <div class="flex justify-between text-xs mb-1">
+            <span>{{ skill.name }}</span>
+            <span class="ice-text">LV.{{ forloop.revcounter }}</span>
+          </div>
+          <div class="xp-track"><div class="xp-fill" style="width:{% widthratio forloop.revcounter skills|length 100 %}%"></div></div>
+        </div>
+      {% empty %}
+        <p class="text-sm" style="color:var(--muted)">No skills returned by the API.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ░░ PROJECTS ░░ -->
+<section id="projects" class="max-w-6xl mx-auto px-4 py-16">
+  <div class="flex flex-wrap items-end justify-between gap-4 mb-7">
+    <h2 class="display text-sm neon-text">// PROJECTS</h2>
+    <p class="text-xs" style="color:var(--muted)">A showcase of recent work, where creativity meets functionality</p>
+  </div>
+
+  <div class="flex flex-wrap gap-2 mb-7">
+    {% for category in categories %}
+      <button class="btn"
+              aria-pressed="{% if category == active_category %}true{% else %}false{% endif %}"
+              hx-get="{% url 'ui:project-grid' %}?category={{ category|urlencode }}"
+              hx-target="#grid"
+              hx-swap="innerHTML"
+              hx-on::after-request="
+                this.closest('div').querySelectorAll('.btn')
+                  .forEach(b => b.setAttribute('aria-pressed', b === this));">
+        {{ category|upper }}
+      </button>
+    {% endfor %}
+  </div>
+
+  <div id="grid">{% include "ui/_project_grid.html" %}</div>
+</section>
+
+<!-- ░░ CONTACT ░░ -->
+<section id="contact" class="max-w-6xl mx-auto px-4 py-16">
+  <h2 class="display text-sm neon-text mb-8">// CONTACT</h2>
+  <div class="hud p-8 text-center">
+    <p class="display text-xs gold-text mb-4">READY PLAYER TWO?</p>
+    <p class="text-sm mb-6" style="color:var(--muted)">
+      Open to backend, full-stack and platform work.
+    </p>
+    <a href="mailto:rhidzkhan.ahmad@anervea.ai" class="btn">✉ SEND MESSAGE</a>
+  </div>
+  <p class="text-center text-xs mt-10" style="color:var(--line)">
+    © {% now "Y" %} AXE.DEV — Django API + httpx frontend
+  </p>
+</section>
+{% endblock %}
