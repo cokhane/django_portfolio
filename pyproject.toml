@@ -21,7 +21,10 @@ select = ["E", "F", "W", "I", "UP", "B", "C4", "RUF"]
 
 [tool.pylint.main]
 load-plugins = ["pylint_django"]
-django-settings-module = "mysite.settings"
+# Two Django projects live here, each with its own settings module, and neither
+# is importable from the repo root. Put both service roots on the path and let
+# each lint run name the settings it needs (see README, "Linting").
+init-hook = "import sys; sys.path[:0] = ['backend', 'frontend']"
 ignore-paths = ["^.*/migrations/.*$", "^\\.venv/.*$"]
 
 [tool.pylint.format]

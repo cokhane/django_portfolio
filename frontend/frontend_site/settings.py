@@ -8,17 +8,11 @@ the backend API over HTTP (see `ui/api.py`).
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-from portfolio_shared.env import allowed_hosts, debug_enabled, secret_key
+from portfolio_shared.env import environment_settings
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv(BASE_DIR.parent / ".env")
-
-DEBUG = debug_enabled()
-SECRET_KEY = secret_key(debug=DEBUG)
-ALLOWED_HOSTS = allowed_hosts()
+DEBUG, SECRET_KEY, ALLOWED_HOSTS = environment_settings(BASE_DIR)
 
 # Where the backend API lives, and how long to wait for it.
 PORTFOLIO_API_BASE_URL = os.environ.get(
