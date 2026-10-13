@@ -14,6 +14,16 @@ class Project(models.Model):
         default=list,
         help_text="Display-only tag names, e.g. ['Django', 'React'].",
     )
+    summary = models.TextField(blank=True, default="")
+    problem = models.TextField(blank=True, default="")
+    approach = models.TextField(blank=True, default="")
+    result = models.TextField(blank=True, default="")
+    role = models.CharField(max_length=40, blank=True, default="")
+    year = models.CharField(max_length=12, blank=True, default="")
+    repo_url = models.URLField(blank=True, default="")
+    live_url = models.URLField(blank=True, default="")
+    image_url = models.URLField(blank=True, default="")
+    is_published = models.BooleanField(default=False)
     display_order = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
