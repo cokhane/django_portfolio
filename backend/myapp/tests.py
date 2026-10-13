@@ -5,12 +5,53 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .models import Project, Skill
+from .serializers import ProjectDetailSerializer
 
 REQUIRED_PROJECT = {
     "title": "Subscription Platform",
     "slug": "subscription-platform",
     "category": "PAYMENTS & COMMERCE",
     "description": "The card line today, until US-3.4-FE renders summary.",
+}
+
+PUBLISHED_CARDS = (
+    {
+        "title": "Second",
+        "slug": "second",
+        "category": "Blog",
+        "description": "Second project.",
+        "tech_stack": ["Django"],
+        "display_order": 1,
+    },
+    {
+        "title": "First",
+        "slug": "first",
+        "category": "Web App",
+        "description": "First project.",
+        "tech_stack": ["Django", "React"],
+        "display_order": 0,
+    },
+)
+
+# display_order 0 would sort this first if the queryset were not filtered,
+# so its absence proves the filter rather than merely the ordering.
+DRAFT_CARD = {
+    "title": "Draft",
+    "slug": "draft",
+    "category": "Web App",
+    "description": "Unpublished, so no endpoint may return it.",
+    "display_order": 0,
+}
+
+LIST_PAYLOAD_KEYS = {"slug", "title", "category", "summary", "description", "tech_stack"}
+
+# Written out in full rather than derived from LIST_PAYLOAD_KEYS: deriving it
+# would let an edit to the list set move this expectation silently, which is
+# the exact payload drift the exact-key-set assertions exist to catch.
+DETAIL_PAYLOAD_KEYS = {
+    "slug", "title", "category", "summary", "description", "tech_stack",
+    "problem", "approach", "result", "role", "year",
+    "repo_url", "live_url", "image_url",
 }
 
 CASE_STUDY = {
@@ -77,45 +118,39 @@ class ProjectAPITests(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        Project.objects.create(
-            title="Second",
-            slug="second",
-            category="Blog",
-            description="Second project.",
-            tech_stack=["Django"],
-            display_order=1,
-        )
-        Project.objects.create(
-            title="First",
-            slug="first",
-            category="Web App",
-            description="First project.",
-            tech_stack=["Django", "React"],
-            display_order=0,
-        )
+        for card in PUBLISHED_CARDS:
+            Project.objects.create(**card, is_published=True)
+        Project.objects.create(**DRAFT_CARD)
 
-    def test_list_returns_every_project(self):
-        """Every seeded project appears in the list response."""
+    def test_list_returns_only_published_projects(self):
+        """Published rows are present; a draft is absent. BRD F-6."""
         response = self.client.get(reverse("project-list"))
 
+        titles = {project["title"] for project in response.json()}
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()), 2)
+        self.assertEqual(titles, {"First", "Second"})
+        self.assertNotIn("Draft", titles)
 
     def test_list_is_ordered_by_display_order(self):
-        """Results follow display_order, not insertion order."""
+        """Ordering still holds over the published-only queryset."""
         response = self.client.get(reverse("project-list"))
 
         titles = [project["title"] for project in response.json()]
         self.assertEqual(titles, ["First", "Second"])
 
     def test_list_exposes_the_fields_the_frontend_renders(self):
-        """The payload carries exactly the fields the template uses."""
+        """The payload carries exactly the fields a card needs."""
         response = self.client.get(reverse("project-list"))
 
-        self.assertEqual(
-            set(response.json()[0]),
-            {"id", "title", "category", "description", "tech_stack"},
-        )
+        self.assertEqual(set(response.json()[0]), LIST_PAYLOAD_KEYS)
+
+    def test_list_payload_carries_no_case_study(self):
+        """The card payload stays small — the prose belongs to the detail."""
+        card = self.client.get(reverse("project-list")).json()[0]
+
+        for field in ("problem", "approach", "result"):
+            with self.subTest(field=field):
+                self.assertNotIn(field, card)
 
     def test_tech_stack_round_trips_as_a_list(self):
         """tech_stack survives JSONField storage as a real list."""
@@ -128,6 +163,18 @@ class ProjectAPITests(TestCase):
         response = self.client.post(reverse("project-list"), {"title": "Nope"})
 
         self.assertEqual(response.status_code, 405)
+
+
+class ProjectDetailSerializerTests(TestCase):
+    """The detail payload's shape, before US-3.1-BE routes anything to it."""
+
+    def test_detail_payload_key_set(self):
+        """The case study rides alongside the card fields, minus the internals."""
+        project = Project.objects.create(**REQUIRED_PROJECT, **CASE_STUDY)
+
+        payload = ProjectDetailSerializer(project).data
+
+        self.assertEqual(set(payload), DETAIL_PAYLOAD_KEYS)
 
 
 class SkillAPITests(TestCase):
