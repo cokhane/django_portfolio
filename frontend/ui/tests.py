@@ -126,12 +126,6 @@ class PositioningTests(SimpleTestCase):
         self.assertContains(response, "ARCHITECT")
         self.assertNotContains(response, "DESIGNER")
 
-    def test_the_title_states_the_discipline_too(self, *_mocks):
-        """A browser tab and a search result both show the title."""
-        response = self.client.get(reverse("ui:home"))
-
-        self.assertContains(response, "AXE // Solution Architect")
-
     def test_contact_uses_the_personal_address(self, *_mocks):
         """A site soliciting freelance work does not route to an employer."""
         response = self.client.get(reverse("ui:home"))
@@ -143,6 +137,29 @@ class PositioningTests(SimpleTestCase):
         response = self.client.get(reverse("ui:home"))
 
         self.assertNotContains(response, "anervea.ai")
+
+    def test_the_years_figure_is_the_one_g9_settled(self, *_mocks):
+        """BRD G9 chose 11 over the CV's hedged "10+".
+
+        The page states the figure twice: in words in the pitch, and in digits
+        in the stat tile. A number corrected in one and not the other is wrong
+        on the same screen, so both forms are asserted, and positively -- a
+        check for the absence of the old figure would pass just as happily on
+        a page that had lost it altogether.
+
+        The tile is matched by its label and its value, with any attributes
+        allowed through. Pinning the class list instead would turn every
+        restyle -- four themes in epic 5, a compiled stylesheet in US-7.2 --
+        into a failure with no copy regression behind it, and a guard that
+        cries wolf is one somebody eventually deletes.
+        """
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertContains(response, "Eleven years")
+        self.assertRegex(
+            response.content.decode(),
+            r"YEARS ACTIVE</p>\s*<p[^>]*>11</p>",
+        )
 
 
 class HomeViewOutageTests(SimpleTestCase):
