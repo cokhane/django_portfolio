@@ -6,6 +6,71 @@ from django.urls import reverse
 
 from .models import Project, Skill
 
+REQUIRED_PROJECT = {
+    "title": "Subscription Platform",
+    "slug": "subscription-platform",
+    "category": "PAYMENTS & COMMERCE",
+    "description": "The card line today, until US-3.4-FE renders summary.",
+}
+
+CASE_STUDY = {
+    "summary": "Built in two weeks. Opened a new revenue stream.",
+    "problem": "A commerce business had no recurring-revenue product.",
+    "approach": "A backend on Repository, Unit of Work and Factory patterns.",
+    "result": "Delivered inside the deadline.\n\nIt now takes 1,000+ orders a day.",
+    "role": "Solo build",
+    "year": "2020\u20132023",
+    "repo_url": "",
+    "live_url": "https://example.com/live",
+    "image_url": "https://example.com/cover.png",
+    "is_published": True,
+}
+
+
+class ProjectModelTests(TestCase):
+    """The case-study fields BRD S5 names, stored against a Project."""
+
+    def test_is_published_defaults_to_false(self):
+        """A project saved with only its required fields is a draft."""
+        project = Project.objects.create(**REQUIRED_PROJECT)
+
+        project.refresh_from_db()
+
+        self.assertFalse(project.is_published)
+
+    def test_case_study_fields_round_trip(self):
+        """Every new field returns from the database exactly as stored."""
+        Project.objects.create(**REQUIRED_PROJECT, **CASE_STUDY)
+
+        project = Project.objects.get(slug=REQUIRED_PROJECT["slug"])
+
+        for field, expected in CASE_STUDY.items():
+            with self.subTest(field=field):
+                self.assertEqual(getattr(project, field), expected)
+
+    def test_year_holds_a_range(self):
+        """year is text, so it carries the MSP entry's four-year range."""
+        Project.objects.create(**REQUIRED_PROJECT, year="2020\u20132023")
+
+        project = Project.objects.get(slug=REQUIRED_PROJECT["slug"])
+
+        self.assertEqual(project.year, "2020\u20132023")
+
+    def test_ordering_is_unchanged(self):
+        """display_order still orders the grid; the API contract rests on it."""
+        Project.objects.create(**REQUIRED_PROJECT, display_order=1)
+        Project.objects.create(
+            title="Earlier",
+            slug="earlier",
+            category="CLOUD & DATA",
+            description="Sorts first on display_order.",
+            display_order=0,
+        )
+
+        titles = [project.title for project in Project.objects.all()]
+
+        self.assertEqual(titles, ["Earlier", "Subscription Platform"])
+
 
 class ProjectAPITests(TestCase):
     """The projects endpoint is the frontend's only source of project data."""
