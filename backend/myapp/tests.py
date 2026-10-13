@@ -1,5 +1,8 @@
 """Tests for the portfolio content models and read-only API."""
 
+import re
+from itertools import chain
+
 from django.core.management import call_command
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
@@ -233,18 +236,127 @@ class SkillAPITests(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
+BRD_CATEGORIES = {
+    "AI PLATFORMS", "MULTI-TENANT SAAS", "PAYMENTS & COMMERCE", "CLOUD & DATA",
+}
+
+PROSE_FIELDS = ("title", "summary", "problem", "approach", "result")
+
+# NFR-6: no published text names a client, employer or platform. Two kinds of term:
+# `uma` is the one platform name the BRD's shortlist table still carries and the
+# case studies anonymised away, so it is the transcription error most likely to
+# recur; the rest mark a company's legal name, which is how an employer usually
+# arrives. Matched whole-word against tokenised text, so `inc` cannot fire on
+# "increased". Extend it when a name is identified — the terms belong here, not
+# in the seeded content.
+DENIED_NAME_TOKENS = frozenset({
+    "uma", "inc", "ltd", "llc", "gmbh", "pty", "corp", "plc", "holdings",
+    "sarl", "bv", "ag", "srl",
+})
+
+# Written out rather than imported from the command: importing would let a slug
+# dropped from SUPERSEDED_SLUGS pass this test silently, which is the regression
+# it exists to catch. Same reasoning as DETAIL_PAYLOAD_KEYS above.
+PLACEHOLDER_SLUGS = (
+    "e-commerce-platform", "tech-blog-platform", "analytics-dashboard",
+    "social-network", "task-manager", "portfolio-builder",
+)
+PLACEHOLDER_SKILLS = (
+    "Django / Python / FastApi", "React / Next.js / Tailwind CSS",
+    "AWS / Digital Ocean / Azure", "Linux / Jenkins / Docker",
+)
+
+
+def labelled_text(project):
+    """Every human-readable value on one row, labelled `(slug, field, value)`.
+
+    Returning the label with the value lets the callers scan a flat sequence —
+    one loop, no project-then-field nesting — and still name the offender.
+    """
+    values = {
+        **{field: getattr(project, field) for field in PROSE_FIELDS},
+        "category": project.category,
+        "role": project.role,
+        "tech_stack": " ".join(project.tech_stack),
+    }
+    return [(project.slug, field, value) for field, value in values.items()]
+
+
+def labelled_text_of(projects):
+    """`labelled_text` over many rows, flattened to one sequence."""
+    return chain.from_iterable(map(labelled_text, projects))
+
+
+def words_in(text):
+    """The lowercase word tokens of `text`, so a match is never a substring."""
+    return set(re.findall(r"[a-z0-9]+", text.lower()))
+
+
 class SeedCommandTests(TestCase):
-    """`seed_portfolio` carries the content that used to be hardcoded."""
+    """`seed_portfolio` carries the real shortlist, anonymised and finished."""
+
+    def setUp(self):
+        call_command("seed_portfolio", verbosity=0)
 
     def test_seeding_is_idempotent(self):
         """Re-seeding updates in place rather than duplicating rows."""
-        call_command("seed_portfolio", verbosity=0)
         first_count = Project.objects.count()
         call_command("seed_portfolio", verbosity=0)
 
         self.assertEqual(Project.objects.count(), first_count)
-        self.assertEqual(first_count, 6)
+        self.assertEqual(first_count, 8)
         self.assertEqual(Skill.objects.count(), 4)
+
+    def test_no_published_text_holds_a_bracketed_prompt(self):
+        """A published field still carrying `[` is an unanswered prompt on the site."""
+        published = Project.objects.filter(is_published=True)
+
+        for slug, field, value in labelled_text_of(published):
+            with self.subTest(slug=slug, field=field):
+                self.assertNotIn("[", value)
+
+    def test_no_seeded_text_names_a_client_employer_or_platform(self):
+        """NFR-6, over drafts too: a draft is published by one admin click."""
+        rows = list(labelled_text_of(Project.objects.all()))
+        rows += [
+            ("skill", name, name)
+            for name in Skill.objects.values_list("name", flat=True)
+        ]
+
+        for slug, field, value in rows:
+            with self.subTest(slug=slug, field=field):
+                self.assertEqual(words_in(value) & DENIED_NAME_TOKENS, set())
+
+    def test_every_category_is_one_of_the_four(self):
+        """A typo would add a fifth filter button to the grid."""
+        seeded = set(Project.objects.values_list("category", flat=True))
+
+        self.assertEqual(seeded - BRD_CATEGORIES, set())
+
+    def test_superseded_placeholders_do_not_survive(self):
+        """The invented content is removed, not merely left unpublished.
+
+        Every placeholder is created, not just the first: seeding one would let
+        any other slug be dropped from the command's list and still pass here.
+        """
+        Project.objects.bulk_create(
+            Project(**{**REQUIRED_PROJECT, "title": slug, "slug": slug, "is_published": True})
+            for slug in PLACEHOLDER_SLUGS
+        )
+        Skill.objects.bulk_create(Skill(name=name) for name in PLACEHOLDER_SKILLS)
+        call_command("seed_portfolio", verbosity=0)
+
+        self.assertFalse(Project.objects.filter(slug__in=PLACEHOLDER_SLUGS).exists())
+        self.assertFalse(Skill.objects.filter(name__in=PLACEHOLDER_SKILLS).exists())
+
+    def test_published_projects_are_complete(self):
+        """The one entry that reaches the site carries every field that sells it."""
+        for project in Project.objects.filter(is_published=True):
+            with self.subTest(slug=project.slug):
+                self.assertTrue(project.summary)
+                self.assertTrue(project.approach)
+                self.assertTrue(project.result)
+                self.assertEqual(project.description, project.summary)
 
 
 def editable_project_fields():
