@@ -107,6 +107,44 @@ class HomeViewTests(SimpleTestCase):
         self.assertContains(response, "Django / Python / FastApi")
 
 
+@patch("ui.views.fetch_skills", return_value=SKILLS)
+@patch("ui.views.fetch_projects", return_value=PROJECTS)
+class PositioningTests(SimpleTestCase):
+    """The positioning copy is the deliverable, so it gets a regression guard.
+
+    Every other test here asserts API-driven content. The hero, the pitch and
+    the contact address are static template text, so a revert or a typo would
+    pass the whole suite silently -- which is exactly how a site goes back to
+    selling a junior version of its author without anyone noticing.
+    """
+
+    def test_the_hero_states_the_discipline(self, *_mocks):
+        """The hero reads SOLUTION ARCHITECT, not DEVELOPER & DESIGNER."""
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertContains(response, "SOLUTION")
+        self.assertContains(response, "ARCHITECT")
+        self.assertNotContains(response, "DESIGNER")
+
+    def test_the_title_states_the_discipline_too(self, *_mocks):
+        """A browser tab and a search result both show the title."""
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertContains(response, "AXE // Solution Architect")
+
+    def test_contact_uses_the_personal_address(self, *_mocks):
+        """A site soliciting freelance work does not route to an employer."""
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertContains(response, "rhidzkhan.ahmad99@gmail.com")
+
+    def test_the_employer_address_is_gone(self, *_mocks):
+        """The specific defect was an address, so the guard is on the address."""
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertNotContains(response, "anervea.ai")
+
+
 class HomeViewOutageTests(SimpleTestCase):
     """An API outage degrades the page instead of breaking it."""
 
