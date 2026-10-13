@@ -3,14 +3,14 @@
 from rest_framework import generics
 
 from .models import Project, Skill
-from .serializers import ProjectSerializer, SkillSerializer
+from .serializers import ProjectListSerializer, SkillSerializer
 
 
 class ProjectListView(generics.ListAPIView):
     """Every portfolio project, ordered for display."""
 
     queryset = Project.objects.all()
-    serializer_class = ProjectSerializer
+    serializer_class = ProjectListSerializer
 
 
 class SkillListView(generics.ListAPIView):
