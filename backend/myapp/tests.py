@@ -1,9 +1,10 @@
 """Tests for the portfolio content models and read-only API."""
 
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
+from .admin import ProjectAdmin
 from .models import Project, Skill
 from .serializers import ProjectDetailSerializer
 
@@ -244,3 +245,45 @@ class SeedCommandTests(TestCase):
         self.assertEqual(Project.objects.count(), first_count)
         self.assertEqual(first_count, 6)
         self.assertEqual(Skill.objects.count(), 4)
+
+
+def editable_project_fields():
+    """Every Project field the author types into, less the auto primary key.
+
+    The implicit `id` is `auto_created`, not `editable=False` — Django hides it
+    from forms by returning no formfield — so both conditions are needed here.
+    """
+    return {
+        field.name
+        for field in Project._meta.fields
+        if field.editable and not field.auto_created
+    }
+
+
+def fields_placed_on_the_form():
+    """Every field named by a ProjectAdmin fieldset, duplicates preserved."""
+    return [
+        field
+        for _, options in ProjectAdmin.fieldsets
+        for field in options["fields"]
+    ]
+
+
+class ProjectAdminTests(SimpleTestCase):
+    """The admin form is the only way content is written. BRD F-11."""
+
+    def test_every_editable_field_is_on_the_form(self):
+        """A field added to Project and left off a fieldset fails here."""
+        self.assertEqual(set(fields_placed_on_the_form()), editable_project_fields())
+
+    def test_no_field_is_repeated_across_fieldsets(self):
+        """Each field sits in exactly one group, so nothing is entered twice."""
+        placed = fields_placed_on_the_form()
+
+        self.assertEqual(len(placed), len(set(placed)))
+
+    def test_the_case_study_opens_on_result(self):
+        """result is written first and the rest of the case study follows it."""
+        case_study = dict(ProjectAdmin.fieldsets)["Case study"]
+
+        self.assertEqual(case_study["fields"][0], "result")
