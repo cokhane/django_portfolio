@@ -37,6 +37,11 @@ class Skill(models.Model):
     """One line in the CORE SKILLS panel."""
 
     name = models.CharField(max_length=120, unique=True)
+    years = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Whole years of experience, set by the author. 0 is a real value.",
+    )
+    is_primary_focus = models.BooleanField(default=False)
     display_order = models.PositiveSmallIntegerField(default=0)
 
     class Meta:

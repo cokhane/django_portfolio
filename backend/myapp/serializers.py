@@ -18,4 +18,4 @@ class SkillSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Skill
-        fields = ("id", "name")
+        fields = ("id", "name", "years", "is_primary_focus")

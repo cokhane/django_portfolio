@@ -135,8 +135,16 @@ class SkillAPITests(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        Skill.objects.create(name="Beta", display_order=1)
+        Skill.objects.create(
+            name="Beta", display_order=1, years=11, is_primary_focus=True
+        )
         Skill.objects.create(name="Alpha", display_order=0)
+
+    def payload_by_name(self):
+        """The list payload keyed by skill name, so tests ignore ordering."""
+        response = self.client.get(reverse("skill-list"))
+
+        return {skill["name"]: skill for skill in response.json()}
 
     def test_list_is_ordered_by_display_order(self):
         """Results follow display_order, not insertion order."""
@@ -146,6 +154,35 @@ class SkillAPITests(TestCase):
         self.assertEqual(
             [skill["name"] for skill in response.json()], ["Alpha", "Beta"]
         )
+
+    def test_list_exposes_the_fields_the_frontend_renders(self):
+        """The payload carries exactly the fields the panel uses."""
+        response = self.client.get(reverse("skill-list"))
+
+        self.assertEqual(
+            set(response.json()[0]),
+            {"id", "name", "years", "is_primary_focus"},
+        )
+
+    def test_years_and_focus_round_trip(self):
+        """Author-set values survive storage and serialization unchanged."""
+        beta = self.payload_by_name()["Beta"]
+
+        self.assertEqual(beta["years"], 11)
+        self.assertTrue(beta["is_primary_focus"])
+
+    def test_zero_years_serializes_as_zero(self):
+        """A skill at zero years sends 0, not null and not an absent key."""
+        alpha = self.payload_by_name()["Alpha"]
+
+        self.assertIn("years", alpha)
+        self.assertEqual(alpha["years"], 0)
+
+    def test_api_is_read_only(self):
+        """Writes are rejected; skills are edited through the admin."""
+        response = self.client.post(reverse("skill-list"), {"name": "Nope"})
+
+        self.assertEqual(response.status_code, 405)
 
 
 class SeedCommandTests(TestCase):
