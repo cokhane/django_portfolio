@@ -24,7 +24,12 @@ PROJECTS = [
         "tech_stack": ["Django", "Tailwind"],
     },
 ]
-SKILLS = [{"id": 1, "name": "Django / Python / FastApi"}]
+SKILLS = [
+    {"id": 1, "name": "Python / Django / FastAPI", "years": 10, "is_primary_focus": False},
+    {"id": 2, "name": "AI / LLM Platforms", "years": 2, "is_primary_focus": True},
+]
+# A backend deployed before US-2.2-BE added the fields: no `years`, no focus flag.
+LEGACY_SKILLS = [{"id": 1, "name": "Django / Python / FastApi"}]
 
 _REQUEST = httpx.Request("GET", "http://testserver/api/projects/")
 
@@ -104,7 +109,7 @@ class HomeViewTests(SimpleTestCase):
         """The CORE SKILLS panel is API-driven too."""
         response = self.client.get(reverse("ui:home"))
 
-        self.assertContains(response, "Django / Python / FastApi")
+        self.assertContains(response, "Python / Django / FastAPI")
 
 
 @patch("ui.views.fetch_skills", return_value=SKILLS)
