@@ -81,11 +81,14 @@
       <h3 class="display text-xs gold-text mb-5">CORE SKILLS</h3>
       {% for skill in skills %}
         <div class="mb-4">
-          <div class="flex justify-between text-xs mb-1">
+          <div class="flex justify-between gap-3 text-xs mb-1">
             <span>{{ skill.name }}</span>
-            <span class="ice-text">LV.{{ forloop.revcounter }}</span>
+            <span class="shrink-0 whitespace-nowrap">
+              {% if skill.years is not None %}<span style="color:var(--muted)">{{ skill.years }} YRS</span>{% endif %}
+              {% if skill.is_primary_focus %}<span class="gold-text">◀ PRIMARY</span>{% endif %}
+            </span>
           </div>
-          <div class="xp-track"><div class="xp-fill" style="width:{% widthratio forloop.revcounter skills|length 100 %}%"></div></div>
+          <div class="xp-track"><div class="xp-fill" style="width:{{ skill.bar_width }}%"></div></div>
         </div>
       {% empty %}
         <p class="text-sm" style="color:var(--muted)">No skills returned by the API.</p>

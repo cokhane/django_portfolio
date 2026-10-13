@@ -1,5 +1,6 @@
 """Tests for the frontend API client and its views."""
 
+import re
 from unittest.mock import patch
 
 import httpx
@@ -165,6 +166,118 @@ class PositioningTests(SimpleTestCase):
             response.content.decode(),
             r"YEARS ACTIVE</p>\s*<p[^>]*>11</p>",
         )
+
+
+@patch("ui.views.fetch_projects", return_value=PROJECTS)
+class SkillsPanelTests(SimpleTestCase):
+    """Every number in CORE SKILLS is stored data, and none is list position.
+
+    The panel used to render `LV.{{ forloop.revcounter }}` and size its bar
+    from the same counter, so reordering the list in admin silently rewrote
+    every "level". These tests pin the replacement and, just as importantly,
+    the two ways it could fabricate a new number in place of the old one: a
+    stored `0` read as "absent", and a zero scale drawing a full bar.
+    """
+
+    def _rendered_widths(self, skills):
+        """Map each skill name to the bar width the PAGE actually draws for it.
+
+        Read off the HTML rather than `response.context`, because the context
+        is the half of this change that is already honest. A template that
+        went back to `{% widthratio forloop.revcounter %}` while the view
+        carried on computing a correct `bar_width` would satisfy any
+        context-based assertion and still ship the exact defect this story
+        exists to remove. Only the rendered attribute proves what a visitor
+        is shown. The panel is sliced out first so the page's other bare
+        `<span>`s cannot be paired with a skill's track.
+        """
+        with patch("ui.views.fetch_skills", return_value=skills):
+            response = self.client.get(reverse("ui:home"))
+        panel = response.content.decode().split("CORE SKILLS")[1].split("// PROJECTS")[0]
+        return dict(re.findall(r"<span>([^<]+)</span>.*?width:(\d+)%", panel, re.S))
+
+    @patch("ui.views.fetch_skills", return_value=SKILLS)
+    def test_the_fabricated_level_badge_is_gone(self, *_mocks):
+        """`LV.N` is replaced by the stored years figure."""
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertNotContains(response, "LV.")
+        self.assertContains(response, "10 YRS")
+        self.assertContains(response, "2 YRS")
+
+    def test_bar_widths_are_drawn_from_years(self, *_mock):
+        """The longest tenure fills the track and the rest scale against it.
+
+        10 and 2 years are chosen so the answer is one list position could
+        not have produced: `forloop.revcounter` over two rows gives 100% and
+        50% whatever the years are, so a 20% track can only have come from
+        the data.
+        """
+        self.assertEqual(
+            self._rendered_widths(SKILLS),
+            {"Python / Django / FastAPI": "100", "AI / LLM Platforms": "20"},
+        )
+
+    def test_reordering_the_list_moves_no_bar(self, *_mock):
+        """The defect this story exists to kill: order must not be a statistic."""
+        self.assertEqual(
+            self._rendered_widths(SKILLS),
+            self._rendered_widths(list(reversed(SKILLS))),
+        )
+
+    @patch("ui.views.fetch_skills", return_value=SKILLS)
+    def test_only_the_primary_focus_carries_the_marker(self, *_mocks):
+        """One skill is flagged, so exactly one marker is drawn -- on that row."""
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertContains(response, "◀ PRIMARY", count=1)
+        self.assertRegex(
+            response.content.decode(), r"(?s)AI / LLM Platforms.*?◀ PRIMARY"
+        )
+
+    def test_zero_years_renders_a_zero_and_an_empty_track(self, *_mock):
+        """`0` is a stored value, so it prints -- and draws nothing."""
+        skills = [
+            {"id": 1, "name": "Rust", "years": 0, "is_primary_focus": False},
+            {"id": 2, "name": "Go", "years": 4, "is_primary_focus": False},
+        ]
+        with patch("ui.views.fetch_skills", return_value=skills):
+            response = self.client.get(reverse("ui:home"))
+
+        self.assertContains(response, "0 YRS")
+        self.assertEqual(self._rendered_widths(skills), {"Rust": "0", "Go": "100"})
+        self.assertContains(response, "width:0%")
+
+    def test_an_all_zero_panel_renders_empty_tracks(self, *_mock):
+        """The database state between US-2.2-BE's defaults and US-2.5-BE's seed.
+
+        The scale is zero here, so the percentage is never computed. The bar
+        it would have produced is not a short one: `.xp-fill` declares no
+        width of its own, so `width:` or `width:%` renders FULL -- a brand new
+        invented statistic standing exactly where the old one was removed.
+        """
+        skills = [
+            {"id": 1, "name": "Rust", "years": 0, "is_primary_focus": False},
+            {"id": 2, "name": "Go", "years": 0, "is_primary_focus": False},
+        ]
+        with patch("ui.views.fetch_skills", return_value=skills):
+            response = self.client.get(reverse("ui:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "width:0%", count=2)
+        self.assertNotContains(response, "width:%")
+        self.assertNotContains(response, 'width:"')
+
+    @patch("ui.views.fetch_skills", return_value=LEGACY_SKILLS)
+    def test_a_backend_without_the_fields_still_renders(self, *_mocks):
+        """The frontend is a separate service and cannot assume the API's version."""
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Django / Python / FastApi")
+        self.assertNotContains(response, "YRS")
+        self.assertNotContains(response, "◀ PRIMARY")
+        self.assertContains(response, "width:0%")
 
 
 class HomeViewOutageTests(SimpleTestCase):

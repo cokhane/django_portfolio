@@ -26,6 +26,43 @@ def _safe(fetch):
         return None
 
 
+def _max_years(skills):
+    """The panel's longest tenure, the scale every bar is drawn against.
+
+    The alternative, a fixed ceiling such as ten years, is itself an invented
+    number in a panel whose whole point is that it invents none.
+    """
+    return max((skill.get("years") or 0 for skill in skills), default=0)
+
+
+def _bar_width(years, max_years):
+    """Percent of the panel maximum, as a whole number; 0 when nothing is drawable.
+
+    Both guards exist for one reason: `.xp-fill` declares no width of its own,
+    so an absent or invalid `width` leaves it a block element drawing a FULL
+    bar. A skill with no stored years would then display the longest bar on
+    the panel -- the same fabricated statistic this story removes, wearing a
+    different hat. `width:0%` is the honest empty track.
+    """
+    if not years or not max_years:
+        return 0
+    return round(years / max_years * 100)
+
+
+def _skill_rows(skills):
+    """Attach a presentation-only `bar_width` to each skill the API returned.
+
+    A new dict per row, so the payload the API handed back is never mutated,
+    and `years` keeps whatever the backend sent -- absent stays absent, so the
+    template can tell "not stored" from a stored `0`.
+    """
+    max_years = _max_years(skills)
+    return [
+        {**skill, "bar_width": _bar_width(skill.get("years"), max_years)}
+        for skill in skills
+    ]
+
+
 def home(request):
     """Render the full single-page portfolio."""
     projects = _safe(fetch_projects)
@@ -36,7 +73,7 @@ def home(request):
         "ui/home.html",
         {
             "projects": projects or [],
-            "skills": skills or [],
+            "skills": _skill_rows(skills or []),
             "api_online": projects is not None,
             "categories": [ALL_CATEGORIES, *categories],
             "active_category": ALL_CATEGORIES,
