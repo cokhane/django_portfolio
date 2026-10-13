@@ -17,19 +17,36 @@
 <section id="home" class="max-w-6xl mx-auto px-4 pt-20 pb-16">
   <p class="text-xs mb-4 ice-text">&gt; booting portfolio.exe ...</p>
   <h1 class="display text-2xl sm:text-4xl mb-5 leading-snug">
-    <span class="neon-text">DEVELOPER</span><br>
-    <span class="gold-text">&amp; DESIGNER</span>
+    <span class="neon-text">SOLUTION</span><br>
+    <span class="gold-text">ARCHITECT</span>
   </h1>
   <p class="text-base max-w-xl mb-8" style="color:var(--muted)">
-    Full-stack engineer building production systems with Django, modern
-    frontends and cloud infrastructure. Press START.
+    Eleven years designing multi-tenant platforms and the cloud estates beneath
+    them &mdash; payment systems running 1,000+ orders a day, AI services held to
+    measured latency and cost budgets, and serverless fleets numbering in the
+    hundreds of functions. Press START.
   </p>
   <div class="flex flex-wrap gap-3">
     <a href="#projects" class="btn" aria-pressed="true">▶ VIEW PROJECTS</a>
     <a href="#contact" class="btn">✉ CONTACT</a>
   </div>
 
-  <div class="mt-10 flex flex-wrap items-center gap-3 text-xs" style="color:var(--muted)">
+  <div class="mt-10 grid gap-3 sm:grid-cols-3 max-w-3xl">
+    <div class="hud p-4">
+      <p class="display" style="font-size:9px;color:var(--muted)">YEARS ACTIVE</p>
+      <p class="display text-sm gold-text mt-3">11</p>
+    </div>
+    <div class="hud p-4">
+      <p class="display" style="font-size:9px;color:var(--muted)">DOMAINS</p>
+      <p class="text-sm ice-text mt-3">Pharma &middot; Healthcare &middot; MSP &middot; Commerce</p>
+    </div>
+    <div class="hud p-4">
+      <p class="display" style="font-size:9px;color:var(--muted)">CLOUD</p>
+      <p class="text-sm ice-text mt-3">AWS &middot; Azure &middot; GCP</p>
+    </div>
+  </div>
+
+  <div class="mt-6 flex flex-wrap items-center gap-3 text-xs" style="color:var(--muted)">
     <span class="tag" style="border-color:{% if api_online %}var(--ice){% else %}var(--neon){% endif %};
       color:{% if api_online %}var(--ice){% else %}var(--neon){% endif %}">
       {% if api_online %}● API ONLINE{% else %}● API OFFLINE{% endif %}
@@ -44,8 +61,15 @@
   <div class="grid gap-6 lg:grid-cols-2">
     <div class="hud p-6">
       <p class="text-sm leading-relaxed mb-4" style="color:var(--muted)">
-        I design and ship full-stack products end to end — API design, data
-        modelling, frontend craft and the deployment pipeline underneath.
+        I design platforms end to end &mdash; the architecture, the data model, the
+        delivery pipeline and the infrastructure underneath. Most of it is
+        multi-tenant SaaS in regulated sectors, where tenant isolation has to be
+        structural rather than a filter someone can forget to write.
+      </p>
+      <p class="text-sm leading-relaxed mb-4" style="color:var(--muted)">
+        Lately that means AI platforms: retrieval grounded in real data, model
+        routing with per-call cost accounting, and hard determinism boundaries so
+        a language model never improvises a number a client will act on.
       </p>
       <p class="text-sm leading-relaxed" style="color:var(--muted)">
         This site is itself the architecture: a Django REST API serving JSON,
@@ -101,9 +125,9 @@
   <div class="hud p-8 text-center">
     <p class="display text-xs gold-text mb-4">READY PLAYER TWO?</p>
     <p class="text-sm mb-6" style="color:var(--muted)">
-      Open to backend, full-stack and platform work.
+      Available for architecture, AI platform and multi-tenant SaaS engagements.
     </p>
-    <a href="mailto:rhidzkhan.ahmad@anervea.ai" class="btn">✉ SEND MESSAGE</a>
+    <a href="mailto:rhidzkhan.ahmad99@gmail.com" class="btn">✉ SEND MESSAGE</a>
   </div>
   <p class="text-center text-xs mt-10" style="color:var(--line)">
     © {% now "Y" %} AXE.DEV — Django API + httpx frontend

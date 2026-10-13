@@ -107,6 +107,61 @@ class HomeViewTests(SimpleTestCase):
         self.assertContains(response, "Django / Python / FastApi")
 
 
+@patch("ui.views.fetch_skills", return_value=SKILLS)
+@patch("ui.views.fetch_projects", return_value=PROJECTS)
+class PositioningTests(SimpleTestCase):
+    """The positioning copy is the deliverable, so it gets a regression guard.
+
+    Every other test here asserts API-driven content. The hero, the pitch and
+    the contact address are static template text, so a revert or a typo would
+    pass the whole suite silently -- which is exactly how a site goes back to
+    selling a junior version of its author without anyone noticing.
+    """
+
+    def test_the_hero_states_the_discipline(self, *_mocks):
+        """The hero reads SOLUTION ARCHITECT, not DEVELOPER & DESIGNER."""
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertContains(response, "SOLUTION")
+        self.assertContains(response, "ARCHITECT")
+        self.assertNotContains(response, "DESIGNER")
+
+    def test_contact_uses_the_personal_address(self, *_mocks):
+        """A site soliciting freelance work does not route to an employer."""
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertContains(response, "rhidzkhan.ahmad99@gmail.com")
+
+    def test_the_employer_address_is_gone(self, *_mocks):
+        """The specific defect was an address, so the guard is on the address."""
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertNotContains(response, "anervea.ai")
+
+    def test_the_years_figure_is_the_one_g9_settled(self, *_mocks):
+        """BRD G9 chose 11 over the CV's hedged "10+".
+
+        The page states the figure twice: in words in the pitch, and in digits
+        in the stat tile. A number corrected in one and not the other is wrong
+        on the same screen, so both forms are asserted, and positively -- a
+        check for the absence of the old figure would pass just as happily on
+        a page that had lost it altogether.
+
+        The tile is matched by its label and its value, with any attributes
+        allowed through. Pinning the class list instead would turn every
+        restyle -- four themes in epic 5, a compiled stylesheet in US-7.2 --
+        into a failure with no copy regression behind it, and a guard that
+        cries wolf is one somebody eventually deletes.
+        """
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertContains(response, "Eleven years")
+        self.assertRegex(
+            response.content.decode(),
+            r"YEARS ACTIVE</p>\s*<p[^>]*>11</p>",
+        )
+
+
 class HomeViewOutageTests(SimpleTestCase):
     """An API outage degrades the page instead of breaking it."""
 
