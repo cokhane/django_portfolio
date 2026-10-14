@@ -117,14 +117,29 @@ class ProjectModelTests(TestCase):
         self.assertEqual(titles, ["Earlier", "Subscription Platform"])
 
 
+def create_project_cards():
+    """Two published cards and one draft, shared by the list and detail suites.
+
+    Both suites need the same three rows, and the draft is the row each one
+    asserts is hidden — two copies of this could drift apart, leaving one
+    endpoint tested against a fixture that no longer has anything to hide.
+    """
+    for card in PUBLISHED_CARDS:
+        Project.objects.create(**card, is_published=True)
+    Project.objects.create(**DRAFT_CARD)
+
+
+def detail_url(slug):
+    """The detail route for `slug`, reached by name rather than by path."""
+    return reverse("project-detail", kwargs={"slug": slug})
+
+
 class ProjectAPITests(TestCase):
     """The projects endpoint is the frontend's only source of project data."""
 
     @classmethod
     def setUpTestData(cls):
-        for card in PUBLISHED_CARDS:
-            Project.objects.create(**card, is_published=True)
-        Project.objects.create(**DRAFT_CARD)
+        create_project_cards()
 
     def test_list_returns_only_published_projects(self):
         """Published rows are present; a draft is absent. BRD F-6."""
@@ -169,8 +184,79 @@ class ProjectAPITests(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
+class ProjectDetailAPITests(TestCase):
+    """One project at its own URL — the route US-3.3-FE's page will fetch."""
+
+    @classmethod
+    def setUpTestData(cls):
+        create_project_cards()
+
+    def test_detail_returns_a_published_project(self):
+        """A published slug resolves to exactly that project. BRD F-3."""
+        response = self.client.get(detail_url("first"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["slug"], "first")
+        self.assertEqual(response.json()["title"], "First")
+
+    def test_detail_payload_carries_the_case_study(self):
+        """The payload is the card fields plus the prose a page renders."""
+        response = self.client.get(detail_url("first"))
+
+        self.assertEqual(set(response.json()), DETAIL_PAYLOAD_KEYS)
+
+    def test_detail_hides_a_draft(self):
+        """A draft 404s — the filter is in the queryset, so no row is found."""
+        response = self.client.get(detail_url(DRAFT_CARD["slug"]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_a_draft_is_indistinguishable_from_a_missing_slug(self):
+        """The 404 leaks nothing: a draft and an unused slug answer alike.
+
+        The slug is derived from the title, so it is guessable. A `403` — or
+        any body naming the row — would confirm that unpublished work exists
+        at that URL. This is the assertion US-3.2-FE's error handling rests on.
+        """
+        draft = self.client.get(detail_url(DRAFT_CARD["slug"]))
+        missing = self.client.get(detail_url("does-not-exist"))
+
+        self.assertEqual(draft.status_code, missing.status_code)
+        self.assertEqual(draft.json(), missing.json())
+
+    def test_unknown_slug_is_404(self):
+        """A slug that was never used is a plain 404."""
+        response = self.client.get(detail_url("does-not-exist"))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_list_and_detail_agree_on_what_is_hidden(self):
+        """One published rule, two readers: a row hidden from the grid 404s.
+
+        Loops every row rather than the draft alone, so a published rule that
+        moved on one view and not the other fails here whichever way it moved.
+        """
+        cards = self.client.get(reverse("project-list")).json()
+        listed = {project["slug"] for project in cards}
+
+        for slug in Project.objects.values_list("slug", flat=True):
+            with self.subTest(slug=slug):
+                retrieved = self.client.get(detail_url(slug)).status_code == 200
+                self.assertEqual(retrieved, slug in listed)
+
+    def test_detail_is_read_only(self):
+        """Writes are rejected; content is edited through the admin."""
+        for method in ("post", "put", "patch", "delete"):
+            with self.subTest(method=method):
+                response = getattr(self.client, method)(
+                    detail_url("first"), {"title": "Nope"}
+                )
+
+                self.assertEqual(response.status_code, 405)
+
+
 class ProjectDetailSerializerTests(TestCase):
-    """The detail payload's shape, before US-3.1-BE routes anything to it."""
+    """The detail payload's shape at the serializer, independent of the route."""
 
     def test_detail_payload_key_set(self):
         """The case study rides alongside the card fields, minus the internals."""

@@ -22,8 +22,8 @@ class ProjectDetailSerializer(ProjectListSerializer):
     """Serialize a Project into the whole case study a detail page renders.
 
     Inherits the card fields so no field name is written twice; the detail
-    payload is by construction a superset of the list payload. Nothing routes
-    here yet — US-3.1-BE adds the retrieve endpoint.
+    payload is by construction a superset of the list payload.
+    `ProjectDetailView` serves it at `/api/projects/<slug>/`.
     """
 
     class Meta(ProjectListSerializer.Meta):
