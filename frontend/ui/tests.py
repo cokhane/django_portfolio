@@ -7,7 +7,7 @@ import httpx
 from django.test import SimpleTestCase
 from django.urls import reverse
 
-from .api import PortfolioAPIError, fetch_projects
+from .api import PortfolioAPIError, PortfolioNotFoundError, fetch_projects
 
 PROJECTS = [
     {
@@ -80,6 +80,60 @@ class APIClientTests(SimpleTestCase):
     def test_malformed_base_urls_surface_as_portfolio_api_error(self, mock_get):
         """A bad PORTFOLIO_API_BASE_URL is config error, not a crash."""
         mock_get.side_effect = httpx.InvalidURL("no host")
+
+        with self.assertRaises(PortfolioAPIError):
+            fetch_projects()
+
+    def test_not_found_is_a_portfolio_api_error(self):
+        """The subclass relationship is the property every other caller rests on.
+
+        `_safe` catches the parent, and both outage tests raise the parent.
+        A sibling exception would slip past all of them silently, so the
+        hierarchy is asserted directly rather than inferred from behaviour.
+        """
+        self.assertTrue(issubclass(PortfolioNotFoundError, PortfolioAPIError))
+
+    @patch("ui.api.httpx.get")
+    def test_a_404_surfaces_as_not_found(self, mock_get):
+        """BRD F2: a missing resource must reach the caller as its own type.
+
+        Without this the only honest answer to a typo'd project URL is the
+        SIGNAL LOST panel, which tells a prospective client the backend is
+        down. The message still names the path, so a log line stays
+        diagnosable -- the path rather than the whole URL, because the base
+        URL is environment config and the path is the constant under test.
+        """
+        mock_get.return_value = httpx.Response(404, request=_REQUEST)
+
+        with self.assertRaises(PortfolioNotFoundError) as caught:
+            fetch_projects()
+
+        self.assertIn("/api/projects/", str(caught.exception))
+
+    @patch("ui.api.httpx.get")
+    def test_a_500_is_not_a_not_found(self, mock_get):
+        """The negative is the half that matters.
+
+        A classifier that returned the narrow type for every error status
+        would pass the 404 test above and still tell a visitor the site is
+        missing while the backend is merely down.
+        """
+        mock_get.return_value = httpx.Response(500, request=_REQUEST)
+
+        with self.assertRaises(PortfolioAPIError) as caught:
+            fetch_projects()
+
+        self.assertNotIsInstance(caught.exception, PortfolioNotFoundError)
+
+    @patch("ui.api.httpx.get")
+    def test_the_parent_arm_still_catches_a_404(self, mock_get):
+        """Every existing caller is provably unaffected by the new type.
+
+        `_safe` catches `PortfolioAPIError` and nothing else. If this stopped
+        holding, a 404 on the list route -- a misconfigured API, not a missing
+        project -- would escape as a 500 instead of degrading to SIGNAL LOST.
+        """
+        mock_get.return_value = httpx.Response(404, request=_REQUEST)
 
         with self.assertRaises(PortfolioAPIError):
             fetch_projects()
@@ -300,6 +354,23 @@ class HomeViewOutageTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "E-Commerce Platform")
+
+    @patch("ui.views.fetch_skills", return_value=SKILLS)
+    @patch("ui.views.fetch_projects", side_effect=PortfolioNotFoundError("gone"))
+    def test_a_list_404_still_renders_signal_lost(self, *_mocks):
+        """A 404 on the LIST route is an outage, not a missing project.
+
+        If `/api/projects/` itself 404s the API is misconfigured or gone, so
+        the honest panel is still SIGNAL LOST. The narrow type exists for a
+        detail route that is not written yet; until a view opts in by catching
+        it, the page must not change. What this pins is that `_safe` catches
+        the subclass through its parent arm, so what a visitor is shown is
+        still the panel an outage draws.
+        """
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "SIGNAL LOST")
 
 
 @patch("ui.views.fetch_projects", return_value=PROJECTS)
