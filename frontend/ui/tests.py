@@ -465,6 +465,121 @@ class ProjectGridTests(SimpleTestCase):
         mock_skills.assert_not_called()
 
 
+def _detail_url(slug):
+    """The briefing URL for `slug`, reversed rather than written out.
+
+    Asserting on a literal `/projects/<slug>/` would pin the route's SHAPE at
+    five call sites, so moving the route would fail them all for no defect.
+    """
+    return reverse("ui:project-detail", kwargs={"slug": slug})
+
+
+@patch("ui.views.fetch_skills", return_value=SKILLS)
+@patch("ui.views.fetch_projects", return_value=PROJECTS)
+class ProjectCardTests(SimpleTestCase):
+    """A card leads with the OUTCOME and is itself the door to the briefing.
+
+    The grid used to render `description` -- what the thing is -- and go
+    nowhere, so a client had to read all eight to find the one shaped like
+    their problem. These tests pin both halves of the fix, and the two ways
+    the lead line can be absent: `summary` is `blank=True`, so a published
+    project may carry an empty one, and a backend older than US-2.3-BE does
+    not send the key at all.
+    """
+
+    def test_cards_lead_with_the_summary(self, *_mocks):
+        """The outcome replaces the blurb -- it does not join it.
+
+        `description` is asserted ABSENT, not merely second: a card rendering
+        both would satisfy any "contains the summary" check while leaving the
+        row exactly as long and as unskimmable as it was.
+        """
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertContains(response, "cut hosting cost 67%")
+        self.assertContains(response, "Halved publishing time")
+        self.assertNotContains(response, "A full-featured online store.")
+        self.assertNotContains(response, "Modern blogging platform.")
+
+    def test_every_card_is_a_link_to_its_briefing(self, *_mocks):
+        """The WHOLE card is the link, which is what the regex proves.
+
+        A `BRIEFING` button somewhere inside the card would satisfy a bare
+        "contains the detail URL" assertion and still leave the title -- the
+        thing a client actually clicks -- inert. So the anchor is asserted to
+        OPEN immediately before the `<article>`, which is the one arrangement
+        that makes the entire row a single tap target (AC 7) on a phone,
+        where the hover lift never fires.
+        """
+        response = self.client.get(reverse("ui:home"))
+
+        for project in PROJECTS:
+            self.assertContains(response, f'href="{_detail_url(project["slug"])}"')
+        self.assertRegex(
+            response.content.decode(),
+            rf'<a href="{_detail_url("e-commerce-platform")}"[^>]*>\s*<article',
+        )
+
+    def test_an_empty_summary_falls_back_to_the_description(self, *_mocks):
+        """`summary` is `blank=True`, so a published row may carry an empty one.
+
+        An empty card is indistinguishable from a broken one, so the old line
+        is better than no line.
+        """
+        drafty = [{**PROJECTS[0], "summary": ""}]
+        with patch("ui.views.fetch_projects", return_value=drafty):
+            response = self.client.get(reverse("ui:home"))
+
+        self.assertContains(response, "A full-featured online store.")
+
+    def test_a_backend_without_summary_still_renders(self, *_mocks):
+        """The frontend is a separate service and cannot assume the API's version.
+
+        An ABSENT key, not an empty one -- the case `{{ x|default:y }}` cannot
+        express, because a filter argument resolves strictly and would raise
+        `VariableDoesNotExist` on a payload carrying neither key. The links
+        are asserted too: degrading the lead line must not cost the card its
+        whole reason for existing.
+        """
+        with patch("ui.views.fetch_projects", return_value=LEGACY_PROJECTS):
+            response = self.client.get(reverse("ui:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "A full-featured online store.")
+        self.assertContains(response, f'href="{_detail_url("e-commerce-platform")}"')
+
+    def test_no_authoring_note_leaks_into_the_card(self, *_mocks):
+        """`{# #}` is SINGLE-LINE in Django; a multi-line one renders as text.
+
+        This has now bitten this template twice. The 404 page shipped an
+        authoring note saying the page must not claim the backend is down --
+        which the page then rendered, claiming it. The same mistake here puts
+        a note about template internals in the one line a paying client reads.
+        The trap is that it is invisible to every content assertion: the
+        summary still renders, so a test looking for the summary passes while
+        the card displays a paragraph of commentary above it.
+        """
+        response = self.client.get(reverse("ui:home"))
+
+        self.assertNotContains(response, "{#")
+        self.assertNotContains(response, "#}")
+
+    def test_the_swapped_partial_carries_the_links(self, *_mocks):
+        """The HTMX swap renders the same partial, so it must link too.
+
+        `home` INCLUDES this partial and `project_grid` renders it directly,
+        and a visitor who filters a category is looking at the second. A link
+        tested only through `ui:home` would leave the filtered grid -- the
+        path a client actually uses to narrow eight projects to one -- as the
+        dead end this story exists to remove.
+        """
+        response = self.client.get(reverse("ui:project-grid"), {"category": "Blog"})
+
+        self.assertContains(response, f'href="{_detail_url("tech-blog-platform")}"')
+        self.assertContains(response, "Halved publishing time")
+        self.assertNotContains(response, _detail_url("e-commerce-platform"))
+
+
 class ProjectDetailViewTests(SimpleTestCase):
     """The detail page has THREE outcomes where every other view has two.
 
