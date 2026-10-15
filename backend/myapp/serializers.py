@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import Project, Skill
+from .models import Availability, Engagement, Project, Skill
 
 
 class ProjectListSerializer(serializers.ModelSerializer):
@@ -46,3 +46,33 @@ class SkillSerializer(serializers.ModelSerializer):
     class Meta:
         model = Skill
         fields = ("id", "name", "years", "is_primary_focus")
+
+
+class EngagementSerializer(serializers.ModelSerializer):
+    """Serialize one "what I take on" card.
+
+    `id` is omitted: a card has no URL and nothing addresses one.
+    """
+
+    class Meta:
+        model = Engagement
+        fields = ("label", "body")
+
+
+class AvailabilitySerializer(serializers.ModelSerializer):
+    """Serialize the availability statement and its cards as ONE object.
+
+    The only non-list payload the API serves, which is deliberate: there is one
+    availability, so a one-element array would be a shape invented to match the
+    other endpoints rather than to describe the thing.
+
+    Serves an unsaved `Availability` too, so the nothing-configured payload
+    carries the same keys as a configured one with the model's defaults as its
+    values. `id` is omitted — it is always `SINGLETON_PK` and says nothing.
+    """
+
+    engagements = EngagementSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Availability
+        fields = ("state", "available_from", "engagements")

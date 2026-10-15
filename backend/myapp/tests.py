@@ -1,14 +1,18 @@
 """Tests for the portfolio content models and read-only API."""
 
 import re
+from datetime import date
 from itertools import chain
 
+from django.contrib import admin
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import SimpleTestCase, TestCase
+from django.db import IntegrityError, transaction
+from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.urls import reverse
 
-from .admin import ProjectAdmin
-from .models import Project, Skill
+from .admin import AvailabilityAdmin, ProjectAdmin
+from .models import Availability, Engagement, Project, Skill
 from .serializers import ProjectDetailSerializer
 
 REQUIRED_PROJECT = {
@@ -485,3 +489,221 @@ class ProjectAdminTests(SimpleTestCase):
         case_study = dict(ProjectAdmin.fieldsets)["Case study"]
 
         self.assertEqual(case_study["fields"][0], "result")
+
+
+# The availability payload, written out in full for the same reason as
+# DETAIL_PAYLOAD_KEYS above: deriving it from the serializer would let a field
+# added there move this expectation silently, and G7 ("no rate is published")
+# is exactly the kind of decision that must not be undone without review.
+AVAILABILITY_PAYLOAD_KEYS = {"state", "available_from", "engagements"}
+ENGAGEMENT_PAYLOAD_KEYS = {"label", "body"}
+
+# The MODEL-level twin of the two sets above, and not a deny-list of
+# {"rate", "notes", ...}: a deny-list only catches the names someone thought of,
+# so a field called `fee` or `price` would walk straight through it. An exact set
+# fails on ANY new field, which is what "cannot be added without review" means.
+# A field that belongs here is added deliberately, by editing this line.
+AVAILABILITY_FIELD_NAMES = {"id", "state", "available_from"}
+ENGAGEMENT_FIELD_NAMES = {"id", "label", "body", "display_order"}
+
+NOTHING_CONFIGURED = {"state": "unstated", "available_from": None, "engagements": []}
+
+ENGAGEMENT_CARD = {
+    "label": "ARCHITECTURE",
+    "body": "Multi-tenant platform design, isolation models, migration off a monolith",
+}
+
+
+class AvailabilityModelTests(TestCase):
+    """One availability statement, and the database holding it to one."""
+
+    def test_a_second_row_cannot_be_created(self):
+        """`create()` twice is refused: the singleton key is already taken."""
+        Availability.objects.create(state=Availability.State.OPEN)
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Availability.objects.create(state=Availability.State.BOOKED)
+
+        self.assertEqual(Availability.objects.count(), 1)
+
+    def test_bulk_create_cannot_slip_a_second_row_past(self):
+        """The rule is in the database, so the path that skips `save()` obeys it.
+
+        `bulk_create()` never calls `save()`, so a singleton pinned there would
+        be bypassed entirely and the table would quietly hold two rows. This is
+        the regression test for that hole: both instances carry the same default
+        primary key, so the insert is refused rather than renumbered.
+        """
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Availability.objects.bulk_create([Availability(), Availability()])
+
+        self.assertEqual(Availability.objects.count(), 0)
+
+    def test_a_row_cannot_be_given_another_primary_key(self):
+        """An explicit `pk=2` is refused by the check constraint, not renumbered."""
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Availability(pk=2, state=Availability.State.OPEN).save()
+
+        self.assertEqual(Availability.objects.count(), 0)
+
+    def test_a_fresh_save_refuses_rather_than_overwriting(self):
+        """Saving a new instance over the row raises; it does not reset fields.
+
+        A singleton that upserted here would answer AC 4 — still one row — while
+        silently resetting every field the caller omitted, so a `state` edit made
+        this way would blank `available_from`. Refusing keeps the stored
+        statement the author's.
+        """
+        Availability.objects.create(
+            state=Availability.State.OPEN, available_from=date(2026, 11, 1)
+        )
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Availability(state=Availability.State.BOOKED).save()
+
+        stored = Availability.current()
+        self.assertEqual(Availability.objects.count(), 1)
+        self.assertEqual(stored.state, Availability.State.OPEN)
+        self.assertEqual(stored.available_from, date(2026, 11, 1))
+
+    def test_an_existing_row_still_edits_in_place(self):
+        """The admin path — load, change, save — must keep working. BRD F-11."""
+        Availability.objects.create(state=Availability.State.OPEN)
+
+        stored = Availability.current()
+        stored.state = Availability.State.BOOKED
+        stored.save()
+
+        self.assertEqual(Availability.objects.count(), 1)
+        self.assertEqual(Availability.current().state, Availability.State.BOOKED)
+
+    def test_the_row_can_be_recreated_after_deletion(self):
+        """Clearing the statement is reversible: the author can state it again.
+
+        Admin allows deleting the row, which is how the author goes back to
+        saying nothing. With an auto-incrementing key that would be one-way --
+        SQLite never reuses a key, so the next insert would be offered 2 and
+        the constraint would refuse it forever. The pinned default is what
+        makes this reversible, and this test is the reason it is not an
+        `AutoField`.
+        """
+        Availability.objects.create(state=Availability.State.OPEN)
+        Availability.objects.all().delete()
+
+        restated = Availability.objects.create(state=Availability.State.BOOKED)
+
+        self.assertEqual(restated.pk, 1)
+        self.assertEqual(Availability.objects.count(), 1)
+
+    def test_no_field_holds_a_rate(self):
+        """Neither model carries a rate, nor free text that would become one.
+
+        BRD G7 resolved rates to "on request", so the absence is a decision
+        rather than an omission. Asserted at the model because the payload sets
+        only cover what is serialized — a `rate` column excluded from `fields`
+        would pass those and still exist to be exposed later.
+        """
+        self.assertEqual(
+            {field.name for field in Availability._meta.fields},
+            AVAILABILITY_FIELD_NAMES,
+        )
+        self.assertEqual(
+            {field.name for field in Engagement._meta.fields},
+            ENGAGEMENT_FIELD_NAMES,
+        )
+
+
+class AvailabilityAPITests(TestCase):
+    """The availability endpoint — the one payload that is an object, not a list.
+
+    No `setUpTestData`: the nothing-configured case is the point of several of
+    these, so each test creates exactly the rows it needs.
+    """
+
+    def test_nothing_configured_returns_the_empty_shape(self):
+        """An empty table is a documented payload, never a 404 or a 500.
+
+        This is the state the database is in the day this ships, and the
+        frontend degrades per endpoint — so a 404 here would take the hire-me
+        panel down on launch rather than render it blank.
+        """
+        response = self.client.get(reverse("availability"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), NOTHING_CONFIGURED)
+
+    def test_payload_exact_key_set(self):
+        """Exactly these keys, so a rate cannot appear without editing a test."""
+        Availability.objects.create(state=Availability.State.OPEN)
+        Engagement.objects.create(**ENGAGEMENT_CARD)
+
+        payload = self.client.get(reverse("availability")).json()
+
+        self.assertEqual(set(payload), AVAILABILITY_PAYLOAD_KEYS)
+        self.assertEqual(set(payload["engagements"][0]), ENGAGEMENT_PAYLOAD_KEYS)
+
+    def test_payload_carries_the_configured_values(self):
+        """State, from-when and the cards round-trip as the author set them."""
+        Availability.objects.create(
+            state=Availability.State.OPEN, available_from=date(2026, 11, 1)
+        )
+        Engagement.objects.create(**ENGAGEMENT_CARD)
+
+        payload = self.client.get(reverse("availability")).json()
+
+        self.assertEqual(payload["state"], "open")
+        self.assertEqual(payload["available_from"], "2026-11-01")
+        self.assertEqual(payload["engagements"], [ENGAGEMENT_CARD])
+
+    def test_cards_without_a_row_still_serve(self):
+        """Partial configuration works: cards render while the state is unstated.
+
+        The cards hang off an unsaved default here, which is the case a reverse
+        foreign key could not have served.
+        """
+        Engagement.objects.create(**ENGAGEMENT_CARD, display_order=1)
+        Engagement.objects.create(label="AI PLATFORMS", body="Grounded retrieval.")
+
+        payload = self.client.get(reverse("availability")).json()
+
+        self.assertEqual(payload["state"], "unstated")
+        self.assertEqual(
+            [card["label"] for card in payload["engagements"]],
+            ["AI PLATFORMS", "ARCHITECTURE"],
+        )
+
+    def test_api_is_read_only(self):
+        """Writes are rejected; availability is edited through the admin."""
+        for method in ("post", "put", "patch", "delete"):
+            with self.subTest(method=method):
+                response = getattr(self.client, method)(
+                    reverse("availability"), {"state": "open"}
+                )
+
+                self.assertEqual(response.status_code, 405)
+
+
+class AvailabilityAdminTests(TestCase):
+    """The admin offers Add only while there is nothing to edit."""
+
+    @staticmethod
+    def add_permission():
+        """Whether AvailabilityAdmin would offer Add to an author right now.
+
+        The superuser is unsaved and has no password: `has_perm` short-circuits
+        on an active superuser, so nothing here needs a credential to exist.
+        """
+        request = RequestFactory().get("/")
+        request.user = get_user_model()(is_superuser=True, is_active=True)
+
+        return AvailabilityAdmin(Availability, admin.site).has_add_permission(request)
+
+    def test_add_is_offered_while_there_is_no_row(self):
+        """With nothing configured the author must be able to create the row."""
+        self.assertTrue(self.add_permission())
+
+    def test_add_is_refused_once_the_row_exists(self):
+        """Add disappears rather than failing with a database error."""
+        Availability.objects.create(state=Availability.State.OPEN)
+
+        self.assertFalse(self.add_permission())

@@ -2,8 +2,13 @@
 
 from rest_framework import generics
 
-from .models import Project, Skill
-from .serializers import ProjectDetailSerializer, ProjectListSerializer, SkillSerializer
+from .models import Availability, Project, Skill
+from .serializers import (
+    AvailabilitySerializer,
+    ProjectDetailSerializer,
+    ProjectListSerializer,
+    SkillSerializer,
+)
 
 # The one published rule, read by every project view so a change to it reaches
 # the grid and the detail page together. `slug` is derived from the title, so a
@@ -49,3 +54,26 @@ class SkillListView(generics.ListAPIView):
 
     queryset = Skill.objects.all()
     serializer_class = SkillSerializer
+
+
+class AvailabilityView(generics.RetrieveAPIView):
+    """The author's availability as one object, at a URL with no lookup in it.
+
+    `get_object()` replaces the usual queryset-plus-lookup because there is
+    nothing to look up: the row is the singleton, and when it does not exist
+    yet the view serves the model's unsaved default rather than a `404`. The
+    hire-me panel therefore always has something to render, which is the state
+    the database is in the day this ships.
+
+    Only `get` is defined, so DRF answers every write `405` — the same way
+    `ProjectDetailView` gets it, not a rule restated here.
+
+    One consequence worth knowing: overriding `get_object()` skips
+    `check_object_permissions()`. Nothing here is permissioned today; a
+    permission class added later must be applied deliberately.
+    """
+
+    serializer_class = AvailabilitySerializer
+
+    def get_object(self):
+        return Availability.current()
