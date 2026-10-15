@@ -6,23 +6,38 @@
     <p class="text-sm" style="color:var(--muted)">No projects in “{{ active_category }}”.</p>
   </div>
 {% else %}
-  <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+  {% comment %}
+    Full-width rows, per the mockup's MISSION SELECT screen: a `summary` is a
+    sentence and wants the width, and at 320px this is the layout either way.
+    NB `{# #}` is SINGLE-LINE in Django -- a multi-line one renders as text.
+  {% endcomment %}
+  <div class="grid gap-5">
     {% for project in projects %}
-      <article class="card hud p-5 flex flex-col">
-        <div class="flex items-center justify-between mb-3">
-          <span class="tag" style="border-color:var(--ember);color:var(--gold)">{{ project.category }}</span>
-          <span class="display" style="font-size:9px;color:var(--line)">
-            {{ forloop.counter|stringformat:"02d" }}
-          </span>
-        </div>
-        <h3 class="display text-xs gold-text mb-3">{{ project.title }}</h3>
-        <p class="text-sm leading-relaxed mb-4 flex-1" style="color:var(--muted)">
-          {{ project.description }}
-        </p>
-        <div class="flex flex-wrap gap-2">
-          {% for tech in project.tech_stack %}<span class="tag">{{ tech }}</span>{% endfor %}
-        </div>
-      </article>
+      {% comment %}
+        The WHOLE row is the link, not a button inside it: on touch the hover
+        lift never fires, so being tappable is the only affordance left.
+      {% endcomment %}
+      <a href="{% url 'ui:project-detail' project.slug %}" class="block">
+        <article class="card hud p-5 flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <span class="tag" style="border-color:var(--ember);color:var(--gold)">{{ project.category }}</span>
+            <span class="display" style="font-size:9px;color:var(--line)" aria-hidden="true">
+              {{ forloop.counter|stringformat:"02d" }}
+            </span>
+          </div>
+          <h3 class="display text-xs gold-text mb-3" style="overflow-wrap:anywhere">{{ project.title }}</h3>
+          {% comment %}
+            `|default:` would 500 here: a filter ARGUMENT resolves strictly, so
+            a payload carrying neither key raises VariableDoesNotExist.
+          {% endcomment %}
+          <p class="text-sm leading-relaxed mb-4 flex-1" style="color:var(--muted)">
+            {% if project.summary %}{{ project.summary }}{% else %}{{ project.description }}{% endif %}
+          </p>
+          <div class="flex flex-wrap gap-2">
+            {% for tech in project.tech_stack %}<span class="tag">{{ tech }}</span>{% endfor %}
+          </div>
+        </article>
+      </a>
     {% endfor %}
   </div>
 {% endif %}
