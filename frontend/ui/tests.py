@@ -14,21 +14,35 @@ from .api import (
     fetch_projects,
 )
 
+# The list payload (`ProjectListSerializer`). Each `summary` deliberately
+# shares no word with its own `description`, so a test asserting one is
+# absent cannot be satisfied by a stray word from the other.
 PROJECTS = [
     {
         "id": 1,
+        "slug": "e-commerce-platform",
         "title": "E-Commerce Platform",
         "category": "Web App",
+        "summary": "Grew the client from 1 to 10 customers and cut hosting cost 67%.",
         "description": "A full-featured online store.",
         "tech_stack": ["Django", "React"],
     },
     {
         "id": 2,
+        "slug": "tech-blog-platform",
         "title": "Tech Blog Platform",
         "category": "Blog",
+        "summary": "Halved publishing time for 40 writers.",
         "description": "Modern blogging platform.",
         "tech_stack": ["Django", "Tailwind"],
     },
+]
+# A backend deployed before US-2.3-BE added `summary`: the key is absent
+# entirely, not merely empty. The frontend is a separate service and cannot
+# assume the backend's version.
+LEGACY_PROJECTS = [
+    {key: value for key, value in project.items() if key != "summary"}
+    for project in PROJECTS
 ]
 SKILLS = [
     {"id": 1, "name": "Python / Django / FastAPI", "years": 10, "is_primary_focus": False},
