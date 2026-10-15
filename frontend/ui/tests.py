@@ -7,7 +7,12 @@ import httpx
 from django.test import SimpleTestCase
 from django.urls import reverse
 
-from .api import PortfolioAPIError, PortfolioNotFoundError, fetch_projects
+from .api import (
+    PortfolioAPIError,
+    PortfolioNotFoundError,
+    fetch_project,
+    fetch_projects,
+)
 
 PROJECTS = [
     {
@@ -31,6 +36,25 @@ SKILLS = [
 ]
 # A backend deployed before US-2.2-BE added the fields: no `years`, no focus flag.
 LEGACY_SKILLS = [{"id": 1, "name": "Django / Python / FastApi"}]
+
+# The detail payload (`ProjectDetailSerializer`), which is the list payload
+# plus the case-study prose the grid card deliberately omits.
+PROJECT = {
+    "slug": "subscription-platform",
+    "title": "Subscription Platform",
+    "category": "Payments",
+    "summary": "A recurring-revenue product built in two weeks.",
+    "description": "A subscription and billing platform.",
+    "tech_stack": ["FastAPI", "Celery"],
+    "problem": "No recurring-revenue product and a two-week window.",
+    "approach": "Repository, Unit of Work and Factory patterns.",
+    "result": "Delivered inside the deadline; 1,000+ orders a day.",
+    "role": "Solo build",
+    "year": "2025",
+    "repo_url": "",
+    "live_url": "",
+    "image_url": "",
+}
 
 _REQUEST = httpx.Request("GET", "http://testserver/api/projects/")
 
@@ -137,6 +161,24 @@ class APIClientTests(SimpleTestCase):
 
         with self.assertRaises(PortfolioAPIError):
             fetch_projects()
+
+    @patch("ui.api.httpx.get")
+    def test_fetch_project_requests_the_slug_path(self, mock_get):
+        """The slug is the whole address, so the exact path is the contract.
+
+        Asserted on the path rather than the whole URL: the base URL is
+        environment config and the path is the constant under test. The
+        trailing slash is part of it -- DRF would answer a slash-less path
+        with a 301 and httpx does not follow redirects, so a path built
+        without it fails as an opaque transport error.
+        """
+        mock_get.return_value = httpx.Response(200, json=PROJECT, request=_REQUEST)
+
+        self.assertEqual(fetch_project("subscription-platform"), PROJECT)
+        self.assertTrue(
+            mock_get.call_args.args[0].endswith("/api/projects/subscription-platform/"),
+            mock_get.call_args.args[0],
+        )
 
 
 @patch("ui.views.fetch_skills", return_value=SKILLS)
@@ -407,3 +449,114 @@ class ProjectGridTests(SimpleTestCase):
         self.client.get(reverse("ui:project-grid"))
 
         mock_skills.assert_not_called()
+
+
+class ProjectDetailViewTests(SimpleTestCase):
+    """The detail page has THREE outcomes where every other view has two.
+
+    Found, missing and down are three different facts, and the status code is
+    how a page states which one happened. These tests exist because
+    `PortfolioNotFoundError` SUBCLASSES `PortfolioAPIError`: a view that
+    handled the broad type first would pass a "renders the case study" test
+    and still answer a typo'd URL with "the backend is unreachable" -- BRD
+    flag F2, which is what this class pins shut.
+    """
+
+    url = reverse("ui:project-detail", kwargs={"slug": "subscription-platform"})
+
+    @patch("ui.views.fetch_project", return_value=PROJECT)
+    def test_renders_the_case_study(self, mock_fetch):
+        """Problem, approach and result reach the page as distinct sections.
+
+        The slug is asserted too: a view that fetched the wrong one would
+        still render *a* case study and satisfy every content assertion here.
+        """
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "// PROBLEM")
+        self.assertContains(response, "// APPROACH")
+        self.assertContains(response, "// RESULT")
+        self.assertContains(response, "No recurring-revenue product")
+        self.assertContains(response, "Unit of Work")
+        self.assertContains(response, "1,000+ orders a day")
+        self.assertContains(response, "Payments")
+        self.assertContains(response, "2025")
+        self.assertContains(response, "Solo build")
+        self.assertContains(response, "FastAPI")
+        mock_fetch.assert_called_once_with("subscription-platform")
+
+    @patch("ui.views.fetch_project", side_effect=PortfolioNotFoundError("gone"))
+    def test_an_unknown_slug_is_a_real_404(self, _mock):
+        """A screener reads the status code, not the copy.
+
+        A 200 wearing 404 wording is a soft 404, and on a portfolio whose
+        argument is engineering rigour it is exactly the detail that costs the
+        audience it was built for.
+        """
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 404)
+
+    @patch("ui.views.fetch_project", side_effect=PortfolioNotFoundError("gone"))
+    def test_a_404_does_not_claim_the_api_is_down(self, _mock):
+        """BRD flag F2, stated as an assertion.
+
+        `status_code=404` is not decoration on these calls: `assertContains`
+        checks 200 by default and would fail on the status line before it ever
+        read the body, turning a copy regression into a confusing status
+        failure.
+
+        "unreachable" is asserted alongside the panel name because the first
+        version of this page failed on that word and not on `SIGNAL LOST`: a
+        multi-line `{# #}` comment is not a comment in Django, so an authoring
+        note explaining that the page must not claim the backend is down
+        rendered into the page and claimed it. The panel name alone would have
+        passed. What F2 actually forbids is the CLAIM, in whatever words.
+        """
+        response = self.client.get(self.url)
+
+        self.assertNotContains(response, "SIGNAL LOST", status_code=404)
+        self.assertNotContains(response, "unreachable", status_code=404)
+        self.assertContains(response, "NO SUCH MISSION", status_code=404)
+
+    @patch("ui.views.fetch_project", side_effect=PortfolioAPIError("down"))
+    def test_an_outage_renders_the_offline_panel_with_200(self, _mock):
+        """A reachable site whose backend is away is not a missing page.
+
+        So it is neither a 404 nor a 500: it degrades exactly as the home page
+        does, through the same `_safe` and the same panel.
+        """
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "SIGNAL LOST")
+        self.assertNotContains(response, "NO SUCH MISSION")
+
+    def test_not_found_is_handled_before_the_outage_case(self):
+        """Two statuses from one view is the proof the ordering is right.
+
+        The narrow error is a subclass, so a view that handled the broad one
+        first would answer `200 SIGNAL LOST` to BOTH of these -- passing any
+        test that only ever sent it one of them. Sending both through the same
+        view is what makes the ordering checkable, and this is the test that
+        fails if anyone ever reunifies the two error paths.
+        """
+        with patch("ui.views.fetch_project", side_effect=PortfolioNotFoundError("gone")):
+            missing = self.client.get(self.url)
+        with patch("ui.views.fetch_project", side_effect=PortfolioAPIError("down")):
+            outage = self.client.get(self.url)
+
+        self.assertEqual(missing.status_code, 404)
+        self.assertEqual(outage.status_code, 200)
+
+    @patch("ui.views.fetch_project", side_effect=PortfolioNotFoundError("gone"))
+    def test_the_404_page_is_still_the_site(self, _mock):
+        """Django's default 404 is the yellow page this template replaces.
+
+        The font link lives only in `base.html`, so finding it proves the
+        error template inherited rather than merely existing.
+        """
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "Press+Start+2P", status_code=404)

@@ -73,3 +73,20 @@ def fetch_projects():
 def fetch_skills():
     """Return every core skill, ordered for display."""
     return _get("/api/skills/")
+
+
+def fetch_project(slug):
+    """Return one published project as its whole case study.
+
+    Raises:
+        PortfolioNotFoundError: no published project has this slug. A draft
+            and a slug that was never used are the same answer here, which is
+            the backend's design rather than an omission -- its published
+            filter is a queryset, so a draft is never found rather than found
+            and refused.
+        PortfolioAPIError: any other failure, as everywhere else.
+
+    The `<slug:slug>` URL converter admits only `[-a-zA-Z0-9_]`, so the slug
+    reaches this point already constrained to characters that need no quoting.
+    """
+    return _get(f"/api/projects/{slug}/")

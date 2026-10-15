@@ -1,0 +1,52 @@
+{% extends "ui/base.html" %}
+
+{% block title %}{% if project %}{{ project.title }} // AXE{% else %}AXE // Mission briefing{% endif %}{% endblock %}
+
+{% block content %}
+<main class="max-w-3xl mx-auto px-4 py-12 sm:py-16">
+  {% if not api_online %}
+    {% include "ui/_signal_lost.html" %}
+  {% else %}
+    <p class="text-xs mb-4" style="color:var(--muted)">
+      <a href="{% url 'ui:home' %}#projects"><span class="ice-text">◀</span> MISSION SELECT</a>
+    </p>
+
+    <div class="flex flex-wrap gap-2 mb-4">
+      <span class="tag" style="border-color:var(--ember);color:var(--gold)">{{ project.category }}</span>
+      {% if project.year %}<span class="tag">{{ project.year }}</span>{% endif %}
+      {% if project.role %}<span class="tag">{{ project.role }}</span>{% endif %}
+    </div>
+
+    <h1 class="display gold-text text-sm sm:text-lg leading-relaxed mb-6" style="overflow-wrap:anywhere">
+      {{ project.title }}
+    </h1>
+
+    {% if project.image_url %}
+      <img src="{{ project.image_url }}" alt="" class="w-full mb-6" style="border:1px solid var(--line)">
+    {% endif %}
+
+    <section class="hud p-5 sm:p-6 mb-4">
+      <h2 class="display neon-text mb-4" style="font-size:10px">// PROBLEM</h2>
+      <div class="text-sm leading-relaxed" style="color:var(--muted)">{{ project.problem|linebreaks }}</div>
+    </section>
+
+    <section class="hud p-5 sm:p-6 mb-4">
+      <h2 class="display neon-text mb-4" style="font-size:10px">// APPROACH</h2>
+      <div class="text-sm leading-relaxed" style="color:var(--muted)">{{ project.approach|linebreaks }}</div>
+    </section>
+
+    <section class="hud p-5 sm:p-6 mb-6" style="border-color:var(--ember)">
+      <h2 class="display gold-text mb-4" style="font-size:10px">// RESULT</h2>
+      <div class="text-sm leading-relaxed" style="color:var(--text)">{{ project.result|linebreaks }}</div>
+    </section>
+
+    <div class="flex flex-wrap gap-2 mb-6">
+      {% for tech in project.tech_stack %}<span class="tag">{{ tech }}</span>{% endfor %}
+    </div>
+
+    <div class="flex flex-wrap gap-3">
+      <a href="{% url 'ui:home' %}#projects" class="btn">◀ BACK</a>
+    </div>
+  {% endif %}
+</main>
+{% endblock %}
