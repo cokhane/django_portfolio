@@ -1,10 +1,18 @@
 """Views that render the portfolio from backend API data."""
 
 import logging
+from functools import partial
 
+from django.http import Http404
 from django.shortcuts import render
 
-from .api import PortfolioAPIError, fetch_projects, fetch_skills
+from .api import (
+    PortfolioAPIError,
+    PortfolioNotFoundError,
+    fetch_project,
+    fetch_projects,
+    fetch_skills,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +86,42 @@ def home(request):
             "categories": [ALL_CATEGORIES, *categories],
             "active_category": ALL_CATEGORIES,
         },
+    )
+
+
+def _published_project(slug):
+    """`fetch_project`, with a missing project raised as a real 404.
+
+    This is the narrow half of the detail page's three outcomes, and it is a
+    separate function so that it runs BEFORE `_safe` ever sees the exception.
+    `PortfolioNotFoundError` subclasses `PortfolioAPIError`, so a single `try`
+    whose arms were ever reordered would answer "the backend is down" to a
+    simple typo -- the whole defect US-3.2 exists to make expressible. Nesting
+    makes that ordering structural: there is no pair of arms to swap.
+
+    `Http404` is deliberately outside the `PortfolioAPIError` hierarchy, so
+    `_safe` does not catch it and it reaches Django's handler untouched. That
+    is the property the composition rests on.
+    """
+    try:
+        return fetch_project(slug)
+    except PortfolioNotFoundError as exc:
+        raise Http404(f"No published project with slug {slug!r}") from exc
+
+
+def project_detail(request, slug):
+    """Render one project as a case study, with three honest outcomes.
+
+    Found renders the page; a missing slug is a real `404` raised above; any
+    other API failure degrades to the same offline panel the home page shows,
+    with a `200` -- a reachable site whose backend is briefly away is neither
+    a missing page nor a crashed frontend.
+    """
+    project = _safe(partial(_published_project, slug))
+    return render(
+        request,
+        "ui/project_detail.html",
+        {"project": project, "api_online": project is not None},
     )
 
 

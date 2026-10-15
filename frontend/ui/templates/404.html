@@ -1,0 +1,30 @@
+{% extends "ui/base.html" %}
+
+{% block title %}404 // AXE{% endblock %}
+
+{% block content %}
+{% comment %}
+Django's default `page_not_found` handler finds this by name, which is why it
+sits at the template root rather than under `ui/`. Extending base.html is what
+keeps a missing page inside the site instead of dropping a visitor onto
+Django's own error page.
+
+The copy below must never say the backend is away: that is a different failure
+with a different panel, and conflating the two is the defect BRD flag F2 names.
+
+This is a block comment rather than a hash one because Django's hash comment is
+single-line only: a multi-line one renders its own text into the page. That is
+not hypothetical here -- it put the very phrase this comment warns about onto
+the 404 itself, where only the by-hand check caught it.
+{% endcomment %}
+<main class="max-w-3xl mx-auto px-4 py-20">
+  <div class="hud p-8 text-center">
+    <p class="display text-sm neon-text mb-3">// NO SUCH MISSION</p>
+    <p class="text-sm mb-6" style="color:var(--muted)">
+      Nothing is filed at <span class="tag">{{ request_path }}</span>. The briefing may have been
+      retired, or the coordinates mistyped.
+    </p>
+    <a href="{% url 'ui:home' %}#projects" class="btn">◀ MISSION SELECT</a>
+  </div>
+</main>
+{% endblock %}
