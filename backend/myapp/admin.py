@@ -4,7 +4,7 @@ from typing import ClassVar
 
 from django.contrib import admin
 
-from .models import Project, Skill
+from .models import Availability, Engagement, Project, Skill
 
 
 @admin.register(Project)
@@ -43,3 +43,30 @@ class SkillAdmin(admin.ModelAdmin):
 
     list_display = ("name", "years", "is_primary_focus", "display_order")
     list_editable = ("years", "display_order")
+
+
+@admin.register(Engagement)
+class EngagementAdmin(admin.ModelAdmin):
+    """Admin for the "what I take on" cards."""
+
+    list_display = ("label", "display_order")
+    list_editable = ("display_order",)
+
+
+@admin.register(Availability)
+class AvailabilityAdmin(admin.ModelAdmin):
+    """Admin for the one availability row: editable, never duplicable."""
+
+    list_display = ("state", "available_from")
+
+    def has_add_permission(self, request):
+        """Offer Add only while there is no row to edit.
+
+        This reads the state of the table; it does not restate the singleton
+        rule, which the database holds. Without it the Add button would still
+        be there and would fail with an `IntegrityError` — honest, but a poor
+        thing to show an author. Delete stays available: removing the row is
+        the author's way of saying nothing, and the endpoint answers with the
+        documented empty shape again.
+        """
+        return super().has_add_permission(request) and not Availability.objects.exists()
