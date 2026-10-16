@@ -1,6 +1,7 @@
 """Views that render the portfolio from backend API data."""
 
 import logging
+from datetime import date
 from functools import partial
 
 from django.http import Http404
@@ -9,6 +10,7 @@ from django.shortcuts import render
 from .api import (
     PortfolioAPIError,
     PortfolioNotFoundError,
+    fetch_availability,
     fetch_project,
     fetch_projects,
     fetch_skills,
@@ -17,6 +19,24 @@ from .api import (
 logger = logging.getLogger(__name__)
 
 ALL_CATEGORIES = "ALL"
+
+# The availability vocabulary the backend's `TextChoices` serves, named here
+# because the panel treats two of the three words specially and a bare literal
+# in a template cannot be found by a reader asking "where is `unstated`
+# handled?". `UNSTATED` is the one state the panel HIDES -- it means nothing
+# has been said, and a tag reading "SLOT: UNSTATED" would be noise where
+# silence is the honest answer.
+UNSTATED = "unstated"
+OPEN = "open"
+
+# The state tag's accent, decided once here and read twice by the template
+# (`border-color` and `color`). Branching it inside the `style` attribute --
+# which is what the API badge above it does -- would write the same condition
+# twice in one tag, so the colour would have two sources of truth in a single
+# attribute. `_skill_rows`' `bar_width` is the standing precedent for a
+# presentation-only value computed in the view.
+ACCENT_OPEN = "var(--ice)"
+ACCENT_BOOKED = "var(--neon)"
 
 
 def _safe(fetch):
@@ -71,10 +91,82 @@ def _skill_rows(skills):
     ]
 
 
+def _available_from(value):
+    """The date the author is free from, or None when there is nothing to show.
+
+    Three ways there is nothing to show, and each is a separate guard because
+    each would otherwise fail differently:
+
+    `None` or `""` is simply unset -- the author has stated a state without a
+    date, which is a legitimate half-filled form.
+
+    An unparseable value is a typo in an admin field. `date.fromisoformat`
+    raises `ValueError` on "next month" or an impossible "2026-13-45", and
+    `TypeError` if a backend ever sent a number instead of a string. Either
+    would otherwise 500 the whole contact section -- the one part of the page
+    that exists to be reachable -- over a mistyped field, so both are caught
+    and the line is dropped instead.
+
+    A date that has already arrived is the subtle one, and the reason this
+    returns a date rather than the raw string: "AVAILABLE FROM NOVEMBER" read
+    the following March is the stale sign on the door that makes a site look
+    abandoned, and the availability line's whole commercial value is being
+    current. Today counts as passed -- "from today" is just "now", and the
+    state tag already says OPEN. Dropping the line rather than rewriting it to
+    "now" keeps the panel from inventing copy the author did not write.
+    """
+    if not value:
+        return None
+    try:
+        parsed = date.fromisoformat(value)
+    except (TypeError, ValueError):
+        logger.warning("Unparseable availability date %r; dropping the line", value)
+        return None
+    if parsed <= date.today():
+        return None
+    return parsed
+
+
+def _hire_me_panel(payload):
+    """Turn the availability object -- or an outage's None -- into context.
+
+    The one place that knows this endpoint's shape, which is why the template
+    carries no guard more complicated than "is this truthy". It is also the
+    one place that must NOT assume a list: every other endpoint here returns a
+    JSON array and this returns a single object, so a `for` loop written out
+    of habit would iterate the payload's KEYS.
+
+    An outage and an unconfigured site deliberately produce the same context.
+    Both mean "nothing has been said about availability", and the panel has no
+    honest way to distinguish them that a visitor would care about -- the hero
+    badge and the project grid already report a backend outage, so saying it a
+    third time here would be noise. What survives either way is the pitch line
+    and the contact route, which are template copy: an outage must still leave
+    a client able to send the email.
+    """
+    payload = payload or {}
+    state = payload.get("state") or ""
+    return {
+        "availability_state": "" if state == UNSTATED else state,
+        "availability_accent": ACCENT_OPEN if state == OPEN else ACCENT_BOOKED,
+        "available_from": _available_from(payload.get("available_from")),
+        "engagements": payload.get("engagements") or [],
+    }
+
+
 def home(request):
-    """Render the full single-page portfolio."""
+    """Render the full single-page portfolio.
+
+    Three endpoints, each fetched independently so one outage never discards
+    another's data. `api_online` is read from `projects` ALONE and deliberately
+    not from the other two: it drives the `API OFFLINE` badge and the grid's
+    `SIGNAL LOST` panel, so letting a dead availability singleton flip it would
+    tell a visitor the whole site was down over the one endpoint whose absence
+    the page is designed to absorb silently.
+    """
     projects = _safe(fetch_projects)
     skills = _safe(fetch_skills)
+    availability = _safe(fetch_availability)
     categories = sorted({project["category"] for project in projects or []})
     return render(
         request,
@@ -85,6 +177,7 @@ def home(request):
             "api_online": projects is not None,
             "categories": [ALL_CATEGORIES, *categories],
             "active_category": ALL_CATEGORIES,
+            **_hire_me_panel(availability),
         },
     )
 
