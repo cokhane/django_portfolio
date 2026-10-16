@@ -95,6 +95,14 @@ EMPTY_AVAILABILITY = {"state": "unstated", "available_from": None, "engagements"
 PITCH_LINE = "Available for architecture, AI platform and multi-tenant SaaS engagements."
 CONTACT_HREF = 'href="mailto:rhidzkhan.ahmad99@gmail.com"'
 
+# The CV, as two independent names. `CV_STATIC_PATH` is what `{% static %}`
+# resolves and is deliberately role-shaped rather than versioned, so a revised
+# CV replaces the blob with no URL or template change (AC 1's stable URL).
+# `CV_DOWNLOAD_NAME` is what the screener's downloads folder shows, which is
+# the only reason the `download` attribute carries a name at all (AC 3).
+CV_STATIC_PATH = "ui/cv.pdf"
+CV_DOWNLOAD_NAME = "Rhidzkhan_Ahmad_Solution_Architect_CV.pdf"
+
 # The detail payload (`ProjectDetailSerializer`), which is the list payload
 # plus the case-study prose the grid card deliberately omits.
 PROJECT = {
