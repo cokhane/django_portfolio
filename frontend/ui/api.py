@@ -75,6 +75,22 @@ def fetch_skills():
     return _get("/api/skills/")
 
 
+def fetch_availability():
+    """Return the author's availability statement and its engagement cards.
+
+    The only endpoint here that answers with an OBJECT rather than a list, so
+    a caller must not iterate the result or treat an empty one as "no rows":
+    `{"state": ..., "available_from": ..., "engagements": [...]}`.
+
+    There is no not-found case to distinguish. Availability is a singleton the
+    backend serves from an unsaved default when nothing has been filled in, so
+    an unconfigured site answers `200` with the empty shape rather than `404`
+    -- which is why this takes no `PortfolioNotFoundError` arm and why callers
+    wrap it in `_safe` rather than in the detail page's narrower handling.
+    """
+    return _get("/api/availability/")
+
+
 def fetch_project(slug):
     """Return one published project as its whole case study.
 

@@ -122,15 +122,48 @@
   <div id="grid">{% include "ui/_project_grid.html" %}</div>
 </section>
 
-<!-- ░░ CONTACT ░░ -->
+<!-- ░░ CONTACT / HIRE-ME ░░ -->
 <section id="contact" class="max-w-6xl mx-auto px-4 py-16">
   <h2 class="display text-sm neon-text mb-8">// CONTACT</h2>
-  <div class="hud p-8 text-center">
-    <p class="display text-xs gold-text mb-4">READY PLAYER TWO?</p>
+  <div class="hud p-6 sm:p-8 text-center">
+    <p class="display text-xs gold-text mb-5">READY PLAYER TWO?</p>
+
+    {% comment %}
+      The availability half. Both tags are guarded independently so a
+      half-filled admin form shows whatever exists, and BOTH vanish together
+      when the endpoint is down -- they are one payload. What must survive is
+      below: the pitch line and the SEND MESSAGE route are template copy, so a
+      client can still write the email with the backend stopped.
+      NB `{# #}` is SINGLE-LINE in Django -- a multi-line one renders as text.
+    {% endcomment %}
+    {% if availability_state or available_from %}
+      <div class="flex flex-wrap justify-center gap-2 mb-6">
+        {% if availability_state %}
+          <span class="tag" style="border-color:{{ availability_accent }};color:{{ availability_accent }}">
+            <span aria-hidden="true">●</span> PLAYER 2 SLOT: {{ availability_state|upper }}
+          </span>
+        {% endif %}
+        {% if available_from %}
+          <span class="tag">AVAILABLE FROM {{ available_from|date:"F"|upper }}</span>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if engagements %}
+      <div class="grid gap-3 sm:grid-cols-3 text-left mb-6">
+        {% for engagement in engagements %}
+          <div class="hud p-4">
+            <p class="display" style="font-size:9px;color:var(--muted);overflow-wrap:anywhere">{{ engagement.label }}</p>
+            <p class="text-sm leading-relaxed mt-3" style="color:var(--muted)">{{ engagement.body }}</p>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
     <p class="text-sm mb-6" style="color:var(--muted)">
       Available for architecture, AI platform and multi-tenant SaaS engagements.
     </p>
-    <a href="mailto:rhidzkhan.ahmad99@gmail.com" class="btn">✉ SEND MESSAGE</a>
+    <a href="mailto:rhidzkhan.ahmad99@gmail.com" class="btn block sm:inline-block">✉ SEND MESSAGE</a>
   </div>
   <p class="text-center text-xs mt-10" style="color:var(--line)">
     © {% now "Y" %} AXE.DEV — Django API + httpx frontend

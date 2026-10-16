@@ -1,6 +1,7 @@
 """Tests for the frontend API client and its views."""
 
 import re
+from datetime import date, timedelta
 from unittest.mock import patch
 
 import httpx
@@ -10,6 +11,7 @@ from django.urls import reverse
 from .api import (
     PortfolioAPIError,
     PortfolioNotFoundError,
+    fetch_availability,
     fetch_project,
     fetch_projects,
 )
@@ -50,6 +52,48 @@ SKILLS = [
 ]
 # A backend deployed before US-2.2-BE added the fields: no `years`, no focus flag.
 LEGACY_SKILLS = [{"id": 1, "name": "Django / Python / FastApi"}]
+
+# The availability payload (`AvailabilitySerializer`): the API's one OBJECT, not a
+# list, which is the structural surprise this story had to absorb. The cards are
+# mockup screen 05's three verbatim, because they are what the author will type
+# into admin; one label carries an ampersand so an assertion on it has to meet
+# autoescaping honestly rather than by accident.
+ENGAGEMENTS = [
+    {
+        "label": "ARCHITECTURE",
+        "body": "Multi-tenant platform design, isolation models, migration off a monolith",
+    },
+    {
+        "label": "AI PLATFORMS",
+        "body": "Grounded retrieval, model routing with cost accounting, determinism boundaries",
+    },
+    {
+        "label": "CLOUD & DELIVERY",
+        "body": "Serverless estates, infrastructure as code, CI/CD that a team can own",
+    },
+]
+# The first of NEXT month, computed per run rather than written down. A literal
+# future date is a time bomb: it eventually becomes a past one, and then the
+# from-month tests start asserting the opposite of what they were written to
+# assert -- silently, because dropping the line is correct behaviour for a past
+# date. The one test that wants a past date states one explicitly.
+# Public, unlike the other derived values here, because `test_hire_me_panel`
+# imports it to build the month string it expects.
+NEXT_MONTH = (date.today().replace(day=1) + timedelta(days=32)).replace(day=1)
+AVAILABILITY = {
+    "state": "open",
+    "available_from": NEXT_MONTH.isoformat(),
+    "engagements": ENGAGEMENTS,
+}
+# US-4.1 Q2's empty shape, verbatim. Not a hypothetical: the seed command creates
+# no availability row and no engagements, so this is what the live site serves the
+# day this ships.
+EMPTY_AVAILABILITY = {"state": "unstated", "available_from": None, "engagements": []}
+# The panel's two pieces of static copy, named once because four tests assert
+# them. Four spellings of one literal is four places to miss when the pitch is
+# reworded, and the ones missed would keep passing against the old wording.
+PITCH_LINE = "Available for architecture, AI platform and multi-tenant SaaS engagements."
+CONTACT_HREF = 'href="mailto:rhidzkhan.ahmad99@gmail.com"'
 
 # The detail payload (`ProjectDetailSerializer`), which is the list payload
 # plus the case-study prose the grid card deliberately omits.
@@ -194,11 +238,45 @@ class APIClientTests(SimpleTestCase):
             mock_get.call_args.args[0],
         )
 
+    @patch("ui.api.httpx.get")
+    def test_fetch_availability_requests_the_singleton_path(self, mock_get):
+        """The one endpoint that answers with an OBJECT, passed through as one.
 
+        Asserted by equality against the whole payload rather than by probing
+        a key, because the defect this guards is a client that "normalises"
+        the singleton into the list shape every other fetch returns -- which
+        would pass any `assertIn("state", ...)` check and hand the view a
+        one-element list to iterate.
+
+        The trailing slash is part of the contract for the same reason it is
+        on the slug path: DRF answers a slash-less path with a 301 and httpx
+        does not follow redirects, so a path built without it fails as an
+        opaque transport error.
+        """
+        mock_get.return_value = httpx.Response(200, json=AVAILABILITY, request=_REQUEST)
+
+        self.assertEqual(fetch_availability(), AVAILABILITY)
+        self.assertTrue(
+            mock_get.call_args.args[0].endswith("/api/availability/"),
+            mock_get.call_args.args[0],
+        )
+
+
+@patch("ui.views.fetch_availability", return_value=AVAILABILITY)
 @patch("ui.views.fetch_skills", return_value=SKILLS)
 @patch("ui.views.fetch_projects", return_value=PROJECTS)
 class HomeViewTests(SimpleTestCase):
-    """The home page renders whatever the API returned."""
+    """The home page renders whatever the API returned.
+
+    The availability patch is topmost on every class that requests `ui:home`,
+    so its mock is appended LAST to each test's positional mocks and no
+    existing signature or body moves. It is not decoration: once `home()`
+    fetches a third endpoint, a class without it sends a real `httpx.get` to
+    `127.0.0.1:8001` -- which passes when a developer happens to have the
+    backend running and renders live data into assertions, and passes equally
+    when nothing is listening because `_safe` swallows the refusal. A test
+    that passes for two opposite reasons is testing nothing.
+    """
 
     def test_renders_every_project_from_the_api(self, *_mocks):
         """Each project returned by the API reaches the page."""
@@ -223,6 +301,7 @@ class HomeViewTests(SimpleTestCase):
         self.assertContains(response, "Python / Django / FastAPI")
 
 
+@patch("ui.views.fetch_availability", return_value=AVAILABILITY)
 @patch("ui.views.fetch_skills", return_value=SKILLS)
 @patch("ui.views.fetch_projects", return_value=PROJECTS)
 class PositioningTests(SimpleTestCase):
@@ -278,6 +357,7 @@ class PositioningTests(SimpleTestCase):
         )
 
 
+@patch("ui.views.fetch_availability", return_value=AVAILABILITY)
 @patch("ui.views.fetch_projects", return_value=PROJECTS)
 class SkillsPanelTests(SimpleTestCase):
     """Every number in CORE SKILLS is stored data, and none is list position.
@@ -390,8 +470,15 @@ class SkillsPanelTests(SimpleTestCase):
         self.assertContains(response, "width:0%")
 
 
+@patch("ui.views.fetch_availability", return_value=AVAILABILITY)
 class HomeViewOutageTests(SimpleTestCase):
-    """An API outage degrades the page instead of breaking it."""
+    """An API outage degrades the page instead of breaking it.
+
+    The class-level availability patch keeps these hermetic (see
+    `HomeViewTests`); every body below is unchanged, because each already
+    takes `*_mocks` and the new mock lands last. AC 8 is about these three
+    continuing to pass on their own terms, which they do.
+    """
 
     @patch("ui.views.fetch_skills", side_effect=PortfolioAPIError("down"))
     @patch("ui.views.fetch_projects", side_effect=PortfolioAPIError("down"))
@@ -464,6 +551,21 @@ class ProjectGridTests(SimpleTestCase):
 
         mock_skills.assert_not_called()
 
+    @patch("ui.views.fetch_availability")
+    def test_does_not_fetch_availability_it_would_discard(self, mock_availability, _mock):
+        """AC 7: the same rule for the third endpoint, and it costs more here.
+
+        This partial is swapped on EVERY category button click, so a fetch
+        added to it is an HTTP round trip per click for an object the grid
+        does not render. The sibling test above pins the same property for
+        skills; this one exists because `home()` and `project_grid` fetch from
+        the same module, and the obvious way to add availability to the page
+        is to add it to both.
+        """
+        self.client.get(reverse("ui:project-grid"))
+
+        mock_availability.assert_not_called()
+
 
 def _detail_url(slug):
     """The briefing URL for `slug`, reversed rather than written out.
@@ -474,6 +576,7 @@ def _detail_url(slug):
     return reverse("ui:project-detail", kwargs={"slug": slug})
 
 
+@patch("ui.views.fetch_availability", return_value=AVAILABILITY)
 @patch("ui.views.fetch_skills", return_value=SKILLS)
 @patch("ui.views.fetch_projects", return_value=PROJECTS)
 class ProjectCardTests(SimpleTestCase):
