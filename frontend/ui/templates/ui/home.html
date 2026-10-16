@@ -1,4 +1,5 @@
 {% extends "ui/base.html" %}
+{% load static %}
 
 {% block content %}
 <!-- ░░ NAV ░░ -->
@@ -163,7 +164,21 @@
     <p class="text-sm mb-6" style="color:var(--muted)">
       Available for architecture, AI platform and multi-tenant SaaS engagements.
     </p>
-    <a href="mailto:rhidzkhan.ahmad99@gmail.com" class="btn block sm:inline-block">✉ SEND MESSAGE</a>
+    {% comment %}
+      The CV sits beside the email rather than in the nav: a screener who is
+      ready to act is already here, and a 12px nav link that only resolves on
+      hover is the weaker tap target at 320px (F-13). `download` is what makes
+      the browser save instead of navigating, and it names the saved file
+      independently of the stored path -- so `cv.pdf` can be replaced by a
+      revised CV without the URL or this template moving. Under DJANGO_DEBUG=0
+      this href 404s until `collectstatic` has run with a web server in front;
+      that is the parked deployment question (A7/F1), not a defect here.
+    {% endcomment %}
+    <div class="flex flex-col sm:flex-row sm:justify-center gap-3">
+      <a href="mailto:rhidzkhan.ahmad99@gmail.com" class="btn">✉ SEND MESSAGE</a>
+      <a href="{% static 'ui/cv.pdf' %}" class="btn"
+         download="Rhidzkhan_Ahmad_Solution_Architect_CV.pdf">⬇ DOWNLOAD CV</a>
+    </div>
   </div>
   <p class="text-center text-xs mt-10" style="color:var(--line)">
     © {% now "Y" %} AXE.DEV — Django API + httpx frontend
