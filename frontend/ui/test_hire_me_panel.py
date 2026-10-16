@@ -4,14 +4,17 @@ Split out of `tests.py` rather than added to it: that module had reached
 1032 lines covering the API client, four views and their degradation
 paths, and pylint's `too-many-lines` is right that it had stopped being one
 subject. This module is the panel US-4.2 built -- the availability
-statement, the engagement cards and the contact route -- and is where
-US-4.3's CV download and US-4.4's contact-route decision will land beside
-it. The shared payload fixtures stay in `tests.py` next to `PROJECTS` and
-`SKILLS`, imported here, so there is still exactly one definition of each.
+statement, the engagement cards and the contact route -- plus US-4.3's CV
+download, which landed beside the mailto rather than in the nav. US-4.4's
+contact-route decision lands here too. The shared payload fixtures stay in
+`tests.py` next to `PROJECTS` and `SKILLS`, imported here, so there is still
+exactly one definition of each.
 """
 
 from unittest.mock import patch
 
+from django.contrib.staticfiles import finders
+from django.templatetags.static import static
 from django.test import SimpleTestCase
 from django.urls import reverse
 
@@ -19,6 +22,8 @@ from .api import PortfolioAPIError
 from .tests import (
     AVAILABILITY,
     CONTACT_HREF,
+    CV_DOWNLOAD_NAME,
+    CV_STATIC_PATH,
     EMPTY_AVAILABILITY,
     ENGAGEMENTS,
     NEXT_MONTH,
@@ -266,3 +271,44 @@ class HireMePanelTests(SimpleTestCase):
 
         for symbol in ("$", "€", "£", "USD", "PHP"):
             self.assertNotIn(symbol, panel)
+
+    def test_the_cv_downloads_from_the_static_path(self, *_mocks):
+        """US-4.3 AC 1-3: the link is in the panel, resolved, and saves.
+
+        The expected href is computed with Django's own `static()` rather than
+        written as `/static/ui/cv.pdf`, so the assertion follows `STATIC_URL`
+        and any future hashing storage instead of pinning today's default and
+        failing the day either changes -- the template is what is under test,
+        not the staticfiles configuration.
+
+        `download` is asserted because without it the browser navigates to a
+        9-page PDF instead of saving it, which is the inline viewer G5 ruled
+        out arriving by accident. Its VALUE is asserted too: the attribute
+        alone would save the file as `cv.pdf`, anonymous in a downloads folder
+        a fortnight later, and naming it is the whole of AC 3.
+
+        Scoped to the panel, like every other assertion here, so a stray CV
+        link elsewhere on the page could never satisfy AC 2.
+        """
+        panel = self._panel(self.client.get(reverse("ui:home")))
+
+        self.assertIn(f'href="{static(CV_STATIC_PATH)}"', panel)
+        self.assertIn(f'download="{CV_DOWNLOAD_NAME}"', panel)
+        self.assertIn("DOWNLOAD CV", panel)
+
+    def test_the_cv_file_is_discoverable_by_staticfiles(self, *_mocks):
+        """AC 4: the file is really there, proved WITHOUT an HTTP status.
+
+        A template test alone passes just as happily when the href points at
+        a file nobody committed, so the two have to be pinned together or the
+        pair proves only that the markup is self-consistent.
+
+        `finders.find` is a filesystem lookup through the same app-directory
+        discovery `{% static %}` describes, so it answers "is the blob where
+        the link says" directly. Fetching the URL would NOT answer it: with
+        `DEBUG=0` Django serves no static files at all, so the request 404s
+        with the file present and correct. AC 4 forbids that assertion for
+        exactly this reason -- it would couple the story to the deployment
+        question A7 parks, and read red for a reason that is not a defect.
+        """
+        self.assertIsNotNone(finders.find(CV_STATIC_PATH))
