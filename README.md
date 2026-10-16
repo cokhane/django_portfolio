@@ -128,6 +128,22 @@ in `portfolio_shared.env.environment_settings()` and each `settings.py` calls it
 in one line. It was duplicated until that extraction, and splitting the lint runs
 would have hidden it rather than fixed it.
 
+## Static files
+
+The CV lives at `frontend/ui/static/ui/cv.pdf` and is linked from the
+hire-me panel with `{% static %}`, so it resolves to `/static/ui/cv.pdf`.
+It is found by `django.contrib.staticfiles`' app-directory discovery —
+`STATICFILES_DIRS` is deliberately not set. The stored name is role-shaped
+rather than versioned so a revised CV replaces the file without moving the
+URL; the `download` attribute carries the name the visitor's browser saves
+it as, independently of the path.
+
+**`runserver` serves this only while `DJANGO_DEBUG=1`.** In production the
+link 404s until `collectstatic` has run and a web server serves the result —
+and the frontend sets no `STATIC_ROOT` yet, so that is the first thing a
+deployment needs. How the site is deployed is still an open question, so
+nothing here assumes an answer.
+
 ## Deploying
 
 The backend's WSGI entry point expects its own directory as the working dir,
