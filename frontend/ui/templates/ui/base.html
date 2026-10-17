@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"{% if theme_class %} class="{{ theme_class }}"{% endif %}>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,13 +14,58 @@
         crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<!-- Four display faces, one request: Arcade's Press Start 2P, the body mono,
+     and the two worlds that replace the display face (Found Footage's Special
+     Elite, Haunted Manor's IM Fell English SC). Just the Work uses the system
+     sans and needs no webfont -- it is the world defined by absence. -->
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&family=Special+Elite&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
 
 <style>
+  /* ── THE THEME CONTRACT (US-5.2) ─────────────────────────────────────
+     A world is a CLASS ON <html> plus a block of custom properties. There
+     are two mechanisms and the split is deliberate:
+
+       flat colour      -> a TOKEN, redefined per world in its class block
+       compound surface -> a PER-THEME RULE (display face, gradient, glow)
+
+     The second exists because a token holding a two-shadow list or a font
+     stack would be a token whose name lies: Haunted Manor's `.neon-text`
+     is a warm #ffd9a0, while Manor's `--neon` is the deep red #a3242b.
+     They are different things and must not share a name.
+
+     Three rules for whoever writes the next page:
+       1. Read tokens. Never write a hex or rgba() outside this file -- a
+          literal in a template is Arcade leaking into the other three
+          worlds, which is the exact defect this layer removes.
+       2. Inside a theme block, reference `var(--token)` wherever the value
+          IS that world's token -- including one token DERIVED from another,
+          as Found Footage's `--line-hover` is its own `--line`. Exactly
+          three things stay literal: a colour no token carries; an rgba()
+          glow or an alpha-of-a-token, neither of which can reference a hex
+          token; and a value the MOCKUP happens to give two slots
+          independently (Manor's `--gold` and `--ember` coincide, as do Just
+          the Work's `--neon`/`--ember` and `--gold`/`--text`) -- aliasing
+          those would assert a relationship the design never stated, and
+          would move both slots the day one of them is retuned.
+       3. A colour one world uses more than once gets a world-local property
+          (Manor's `--lit` and `--edge`). Repeating the literal is the same
+          duplication rule 2 forbids, merely against no existing token.
+
+     `:root` IS Arcade -- the original cut, and the base every other world
+     overrides. With no class on <html> the page renders Arcade unchanged.
+     Values for the other three are copied from the mockup; the handful the
+     mockup leaves silent are derived from that world's own token and are
+     marked `derived` where they appear.
+     ──────────────────────────────────────────────────────────────────── */
+
   :root{
     --void:#07070a; --panel:#111118; --line:#2a2a38;
     --neon:#ff2d55; --ember:#ff6b1a; --gold:#ffc83d; --ice:#22d3ee;
     --text:#e8e8f0; --muted:#8b8ba3;
+    /* Promoted from literals that used to bypass the layer: the sticky nav
+       backdrop (was baked into home.html's markup), the hover border and
+       the XP track. Each one would otherwise stay Arcade in every world. */
+    --nav:rgba(7,7,10,.82); --line-hover:#3d3d52; --track:#1b1b26;
   }
   *{box-sizing:border-box}
   body{
@@ -49,10 +94,11 @@
   .hud{position:relative; background:linear-gradient(160deg,rgba(17,17,24,.92),rgba(7,7,10,.92)); border:1px solid var(--line)}
   .hud::before,.hud::after{
     content:''; position:absolute; width:14px; height:14px; border:2px solid var(--neon);
+    pointer-events:none;
   }
   .hud::before{top:-1px; left:-1px; border-right:0; border-bottom:0}
   .hud::after{bottom:-1px; right:-1px; border-left:0; border-top:0}
-  .hud:hover{border-color:#3d3d52}
+  .hud:hover{border-color:var(--line-hover)}
 
   .neon-text{color:var(--neon); text-shadow:0 0 8px rgba(255,45,85,.65)}
   .gold-text{color:var(--gold); text-shadow:0 0 8px rgba(255,200,61,.5)}
@@ -75,12 +121,119 @@
   .btn:hover{color:var(--gold); border-color:var(--ember); box-shadow:0 0 12px -2px rgba(255,107,26,.6)}
   .btn[aria-pressed="true"]{color:var(--void); background:var(--gold); border-color:var(--gold)}
 
-  .xp-track{height:6px; background:#1b1b26; border:1px solid var(--line); overflow:hidden}
+  .xp-track{height:6px; background:var(--track); border:1px solid var(--line); overflow:hidden}
   .xp-fill{height:100%; background:linear-gradient(90deg,var(--neon),var(--ember),var(--gold))}
 
   .htmx-request #grid{opacity:.35; transition:opacity .1s}
   a{color:inherit}
   ::selection{background:var(--ember); color:#000}
+
+  /* ══ HAUNTED MANOR — candlelight, theatrical, warm. The default world. ══
+     A theme's plain `.btn` rule has the same specificity (0,2,0) as the base
+     `.btn:hover` and `.btn[aria-pressed="true"]`, and comes later, so it wins
+     on source order alone. Every world therefore RESTATES its own hover and
+     pressed rules below its `.btn` -- without them a themed button loses the
+     states entirely, which is silent and only visible on the page. */
+  .manor{
+    --void:#0b0a14; --panel:#15131f; --line:#2e2a40;
+    --neon:#a3242b; --ember:#ffb95e; --gold:#ffb95e; --ice:#9fd8e8;
+    --text:#e6e1d4; --muted:#9a93a8;
+    --nav:rgba(11,10,20,.82);     /* derived: --void at Arcade's .82, which no var() can express */
+    --line-hover:#514868;         /* mockup */
+    --track:var(--panel);         /* derived: the mockup is silent on Manor's track */
+    /* Manor-local, carried by no slot in the twelve: a lit warm highlight
+       above --gold, and the interactive edge its tags and buttons share.
+       Each is used more than once below, so each is named once here. */
+    --lit:#ffd9a0; --edge:#3a3450;
+  }
+  .manor body{
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(159,216,232,.09), transparent 70%),
+      radial-gradient(ellipse 50% 40% at 50% 100%, rgba(255,185,94,.06), transparent 70%),
+      var(--void);
+  }
+  .manor .display{font-family:'IM Fell English SC',Georgia,serif; letter-spacing:.02em; line-height:1.4}
+  .manor .neon-text{color:var(--lit); text-shadow:0 0 18px rgba(255,185,94,.75),0 0 44px rgba(255,185,94,.35)}
+  .manor .gold-text{color:var(--ice); text-shadow:0 0 16px rgba(159,216,232,.6),0 0 40px rgba(159,216,232,.25)}
+  .manor .hud{
+    background:linear-gradient(160deg,rgba(21,19,31,.94),rgba(11,10,20,.94));
+    /* `transform` is restated deliberately. A project card is `card hud`, and
+       `.manor .hud` (0,2,0) outranks `.card` (0,1,0) -- so a transition list
+       without it REPLACES the base one and the hover lift snaps instead of
+       animating, in the default world, visibly only in a browser. */
+    transition:transform .18s ease, box-shadow .3s ease, border-color .3s ease;
+  }
+  .manor .hud::before,.manor .hud::after{border-color:var(--ember); opacity:.65}
+  .manor .hud:hover{box-shadow:0 0 34px -8px rgba(159,216,232,.4)}
+  .manor .card:hover{box-shadow:0 0 0 1px var(--ember),0 12px 34px -12px rgba(255,185,94,.5)}  /* derived */
+  .manor .xp-fill{background:linear-gradient(90deg,#4a3a6a,var(--ice),var(--ember))}
+  .manor .tag{border-color:var(--edge); color:#b3abc2; background:rgba(0,0,0,.35)}
+  .manor .btn{
+    font-family:'IM Fell English SC',Georgia,serif; font-size:14px; letter-spacing:.08em;
+    border-color:var(--edge); color:#cfc7dc; padding:12px 18px;
+  }
+  .manor .btn:hover{color:var(--lit); border-color:var(--ember); box-shadow:0 0 22px -4px rgba(255,185,94,.6)}
+  .manor .btn[aria-pressed="true"]{
+    background:rgba(255,185,94,.14); border-color:var(--ember); color:var(--lit);
+    box-shadow:0 0 26px -6px rgba(255,185,94,.5);
+  }
+  .manor body::before{background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 4px)}
+  .manor body::after{background:radial-gradient(ellipse at center,transparent 62%,rgba(0,0,0,.72) 100%)}
+
+  /* ══ FOUND FOOTAGE — dried blood, bone, a tape that will not hold ══
+     `--line-hover` is this world's own `--line`: the mockup gives Found
+     Footage no hover lift, and that reads as deliberate rather than missing. */
+  .horror{
+    --void:#08090a; --panel:#111314; --line:#2b2f2c;
+    --neon:#8b1a1a; --ember:#b33a2b; --gold:#c9b99a; --ice:#6f8f6a;
+    --text:#d8d6ce; --muted:#8a8a82;
+    --nav:rgba(8,9,10,.82);       /* derived: --void at Arcade's .82 */
+    --line-hover:var(--line);     /* derived: this world is given no hover lift */
+    --track:var(--panel);         /* derived: the mockup is silent on Horror's track */
+  }
+  .horror .display{font-family:'Special Elite',serif; letter-spacing:.04em; line-height:1.5}
+  .horror .neon-text{color:#a82020; text-shadow:0 0 14px rgba(168,32,32,.55)}
+  .horror .gold-text{color:var(--gold); text-shadow:0 0 10px rgba(201,185,154,.25)}
+  .horror .ice-text{color:#7fa877}
+  .horror .hud{background:linear-gradient(160deg,rgba(17,19,20,.95),rgba(8,9,10,.95))}
+  .horror .hud::before,.horror .hud::after{border-color:#6e1616}
+  .horror .card:hover{box-shadow:0 0 0 1px var(--ember),0 12px 34px -12px rgba(179,58,43,.5)}  /* derived */
+  .horror .xp-fill{background:linear-gradient(90deg,#4a1010,var(--neon),var(--ember))}
+  .horror .btn{font-family:'Special Elite',serif; font-size:12px; letter-spacing:.1em; color:#9a9a90}
+  .horror .btn:hover{color:var(--gold); box-shadow:0 0 12px -2px rgba(179,58,43,.6)}  /* derived */
+  .horror .btn[aria-pressed="true"]{background:var(--neon); border-color:var(--neon); color:#e8e4da}
+  .horror body::before{background:repeating-linear-gradient(0deg,rgba(0,0,0,.34) 0 1px,transparent 1px 3px)}
+  .horror body::after{background:radial-gradient(ellipse at center,transparent 38%,rgba(0,0,0,.9) 100%)}
+
+  /* ══ JUST THE WORK — "No blood, no creatures, nothing that moves." ══
+     The world defined by ABSENCE, which is why the overlays are SUPPRESSED
+     rather than recoloured: a quieter scanline is still a scanline. */
+  .clean{
+    --void:#0e1014; --panel:#171a20; --line:#272c35;
+    --neon:#5b9dd9; --ember:#5b9dd9; --gold:#e8eaed; --ice:#6fb6a8;
+    --text:#e8eaed; --muted:#99a1ac;
+    --nav:rgba(14,16,20,.82);     /* derived: --void at Arcade's .82 */
+    --line-hover:#39414e; --track:#1e222a;   /* both mockup */
+  }
+  .clean .display{
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-weight:650; letter-spacing:-.01em; line-height:1.3;
+  }
+  .clean .neon-text{color:var(--text); text-shadow:none}
+  .clean .gold-text{color:var(--neon); text-shadow:none}
+  .clean .hud{background:var(--panel); box-shadow:none}
+  .clean .hud::before,.clean .hud::after{display:none}
+  .clean .card:hover{transform:none; box-shadow:0 1px 0 var(--line)}
+  .clean .xp-fill{background:var(--neon)}
+  .clean .tag{background:transparent}
+  .clean .btn{
+    font-family:ui-sans-serif,system-ui,sans-serif; font-size:13px; font-weight:600;
+    letter-spacing:0; color:var(--text); background:transparent; padding:11px 18px;
+  }
+  .clean .btn:hover{border-color:var(--neon); color:var(--neon); box-shadow:none}
+  .clean .btn[aria-pressed="true"]{background:var(--neon); border-color:var(--neon); color:var(--void)}
+  .clean body::before,.clean body::after{display:none}
+  .clean .flicker{animation:none}
 </style>
 </head>
 <body>
