@@ -41,6 +41,10 @@ TEMPLATES = [
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
+                # The active world's root class. A processor rather than view
+                # context because Django's own `page_not_found` renders
+                # `404.html`, and no view of ours can reach that render.
+                "ui.context_processors.theme",
             ],
         },
     },
