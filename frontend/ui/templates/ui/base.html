@@ -123,12 +123,27 @@
   // storage failure and a first visit both land on the authored experience.
   function scares() { return read(KEY.scares) !== "0"; }
 
-  function setScares(on) { write(KEY.scares, on ? "1" : "0"); }
+  // The `applyEffects` shape, on `<html>` and carried on its own. Separate
+  // from the motion class deliberately: stillness means no scare in
+  // practice, but the two preferences stay apart, so restoring effects
+  // never silently restores a scare the visitor turned off.
+  function applyScares(on) {
+    document.documentElement.classList.toggle("no-scares", !on);
+  }
 
-  // The seam US-5.4, US-5.5 and US-5.6 wire their controls to. `setWorld`
-  // and `setEffects` APPLY their class and persist the choice; `setScares`
-  // persists only, because `.no-scares` is US-5.6's class to define and a
-  // root class no stylesheet answers would be worse than none.
+  // US-5.3 left this persisting ONLY, because the class it would have
+  // applied had no stylesheet behind it yet -- a root class nothing answers
+  // is worse than none. US-5.6 defines that class, so this now takes the
+  // `setEffects` shape: apply, then write, one path, so the page and
+  // storage cannot disagree.
+  function setScares(on) {
+    applyScares(on);
+    write(KEY.scares, on ? "1" : "0");
+  }
+
+  // The seam US-5.4, US-5.5 and US-5.6 wire their controls to. All three
+  // setters APPLY their class and persist the choice, so no control holds
+  // an answer of its own and none of them reaches storage directly.
   window.axePrefs = {
     world: world, setWorld: setWorld,
     effects: effects, setEffects: setEffects,
@@ -136,8 +151,11 @@
   };
 
   // Above the pin guard, because `?theme=` pins the WORLD and nothing else;
-  // and in `<head>`, so stillness is painted rather than corrected after.
+  // and in `<head>`, so stillness is painted rather than corrected after,
+  // and the scare class is on the root element before anything epic 6 adds
+  // could read it.
   applyEffects(effects());
+  applyScares(scares());
 
   // `?theme=` won this render: leave it alone, and store nothing. A QA
   // override that wrote itself to storage would stop being an override and
@@ -415,6 +433,37 @@
   .no-motion *,.no-motion *::before,.no-motion *::after{animation:none !important; transition:none !important}
   .no-motion body::before,.no-motion body::after{display:none}
 
+  /* ── NO SCARES (US-5.6) ────────────────────────────────────────
+     The twin of the block above, and deliberately NOT folded into it.
+     Stillness does mean no scare in practice, but the two preferences stay
+     apart so that restoring effects never silently restores a scare the
+     visitor turned off (S14).
+
+     TWO hooks, not the mockup's six class names, for the reason the block
+     above records: a per-creature list is a list somebody has to remember
+     to add to, and the whole point of shipping this before the things it
+     withdraws is that nobody will. `.scare` is the ONE container epic 6
+     puts every scare element inside; `.jolt` is the single case that
+     cannot live in that container, because it shakes content that stays on
+     the page. `animation:none` is not redundant beside the motion class --
+     scares-off with effects ON is exactly the combination S14 exists for.
+
+     `display:none` CANCELS a running animation rather than covering it, so
+     withdrawing the container genuinely stops its work on a weak device.
+
+     THIS IS THE BELT; THE CONTRACT IS IN SCRIPT. No stylesheet can stop a
+     timer, a focus move or a transition that epic 6 starts in JavaScript.
+     The sequence MUST ask `window.axePrefs.scares()` before it arms
+     anything, and must not start when the answer is false -- prevent the
+     sequence, do not merely hide its paint. The full contract US-6.5 builds
+     to is in this story's Implementation notes.
+
+     Never join either class to a world's class in one selector -- the theme
+     suite would read the rule as that world's palette.
+     ───────────────────────────────────────────────────────────── */
+  .no-scares .scare{display:none !important}
+  .no-scares .jolt{animation:none !important}
+
   /* ══ HAUNTED MANOR — candlelight, theatrical, warm. The default world. ══
      A theme's plain `.btn` rule has the same specificity (0,2,0) as the base
      `.btn:hover` and `.btn[aria-pressed="true"]`, and comes later, so it wins
@@ -521,6 +570,16 @@
   .clean .btn[aria-pressed="true"]{background:var(--neon); border-color:var(--neon); color:var(--void)}
   .clean body::before,.clean body::after{display:none}
   .clean .flicker{animation:none}
+  /* AC 6. Just the Work has no scare to govern (S11), and a switch that
+     flips a label while nothing else changes is precisely the dead control
+     the story forbids. `display:none` drops it from Tab order and from the
+     screen reader's tree as well, so here it is absent rather than merely
+     invisible -- the same rule the cluster already follows with JavaScript
+     off. In CSS and not in script because a world swaps live through the
+     chooser: this rule re-reads on the same frame the root class changes,
+     with no hook into the choosing path and no second list of which worlds
+     scare. The markup stays identical in every world, so F-18 holds. */
+  .clean #toggle-scares{display:none}
 </style>
 </head>
 <body>
@@ -606,6 +665,7 @@
 <div id="site-controls" hidden>
   <button class="btn" type="button" id="toggle-effects" aria-pressed="false"
           aria-label="Remove all effects and animation.">REMOVE EFFECTS</button>
+  <button class="btn" type="button" id="toggle-scares" aria-pressed="true">SCARES: ON</button>
   <button class="btn" type="button" id="open-chooser">&#8635; CHANGE WORLD</button>
 </div>
 
@@ -633,6 +693,7 @@
   var controls = document.getElementById("site-controls");
   var reopen = document.getElementById("open-chooser");
   var stillness = document.getElementById("toggle-effects");
+  var scareSwitch = document.getElementById("toggle-scares");
   // The same vocabulary the head script reads, from the same rendered block.
   // The skip picks from THESE names, so "surprise me" can never offer a world
   // the server does not know -- and no second world list exists in JavaScript.
@@ -708,6 +769,19 @@
     );
   }
 
+  // The same view shape, over the other preference -- and the polarity is
+  // deliberately the other way up. This label names the THING ("SCARES: ON"),
+  // so pressed means the scares ARE on; the sibling's label names an ACTION,
+  // so pressed there means the action is applied. Each agrees with the words
+  // beside it, which is what a screen reader reads out. No `aria-label`: the
+  // visible text already states the state, where "REMOVE EFFECTS" does not
+  // say what it removes them from. Strings are F-18's.
+  function renderScares() {
+    var on = window.axePrefs.scares();
+    scareSwitch.textContent = on ? "SCARES: ON" : "SCARES: OFF";
+    scareSwitch.setAttribute("aria-pressed", String(on));
+  }
+
   // `aria-modal="true"` tells a screen reader the rest of the page is inert.
   // Tab has to agree with that claim, or focus walks out of a dialog the
   // reader has been told is the only thing on screen.
@@ -745,11 +819,16 @@
     window.axePrefs.setEffects(!window.axePrefs.effects());
     renderStillness();
   });
+  scareSwitch.addEventListener("click", function () {
+    window.axePrefs.setScares(!window.axePrefs.scares());
+    renderScares();
+  });
   document.addEventListener("keydown", onKeydown);
 
-  // Correct the server's guess while the cluster is still hidden; that
-  // ordering is why the visitor never sees the label flip.
+  // Correct the server's guesses while the cluster is still hidden; that
+  // ordering is why the visitor never sees either label flip.
   renderStillness();
+  renderScares();
 
   // The controls do nothing without this script, so this script reveals them.
   controls.hidden = false;
