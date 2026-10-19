@@ -5,6 +5,138 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}AXE // Solution Architect{% endblock %}</title>
 
+{% comment %}
+  ── THE PREFERENCE STORE (US-5.3) ──────────────────────────────────────
+  The first JavaScript this site owns, and it is FIRST IN THE HEAD on
+  purpose. The server cannot read `localStorage`, so it renders the
+  default world (or the one `?theme=` asked for) and this script corrects
+  it for a returning visitor. Corrects it BEFORE the browser paints:
+  nothing has been painted while `<head>` is still parsing, so the class
+  is already right the first time the page is drawn and there is no flash
+  of the wrong world. That is the whole reason US-5.2 put the class on
+  `<html>` rather than `<body>` -- `<body>` does not exist yet here.
+
+  Above `cdn.tailwindcss.com` rather than merely above the stylesheet:
+  both are render-blocking, so a script placed after the CDN tag waits on
+  a third-party fetch before it can set a class it already knows.
+
+  NFR-7 is the hard rule in this block. Browser storage THROWS -- in
+  private windows, and with site data blocked -- and it throws on the
+  property access, not only on the call, so `window.localStorage` itself
+  sits inside each `try`. An unhandled throw here is a blank page instead
+  of a portfolio. The catches are deliberately silent: a visitor who has
+  blocked storage would otherwise see a console error on every single
+  page load, which is noise forever for a condition the site handles.
+
+  Nothing on the page depends on any of this running (A1). With
+  JavaScript off the server's default world renders and every project
+  stays reachable -- `test_preferences.py` pins exactly that.
+{% endcomment %}
+{{ theme_worlds|json_script:"theme-worlds" }}
+<script>
+(function () {
+  "use strict";
+
+  // Rendered from `ROOT_CLASSES`, so the vocabulary has ONE definition and
+  // it is Python's. `json_script` escapes the payload, so this stays safe
+  // however the mapping grows.
+  var worlds = JSON.parse(document.getElementById("theme-worlds").textContent);
+  var pinned = {{ theme_pinned|yesno:"true,false" }};
+
+  // The mockup's three keys, unchanged -- a visitor who saw the mockup and
+  // then the site keeps their choice.
+  var KEY = { world: "axe.theme", effects: "axe.motion", scares: "axe.scares" };
+
+  function read(key) {
+    try { return window.localStorage.getItem(key); } catch (e) { return null; }
+  }
+
+  function write(key, value) {
+    try { window.localStorage.setItem(key, value); } catch (e) { /* NFR-7 */ }
+  }
+
+  // THE one validation point (AC 4). Storage is not ours to trust: another
+  // tab, an older version of the site or a hand-edited value can all put a
+  // name in there that means nothing here. `hasOwnProperty` rather than a
+  // truthiness check on `worlds[name]`, for two reasons that both bite --
+  // Arcade's class is the empty string and would read as absent, and a
+  // stored "toString" would otherwise find a function on the prototype and
+  // sail through as a known world.
+  function known(name) {
+    return Object.prototype.hasOwnProperty.call(worlds, name);
+  }
+
+  // Swap ONLY the world class. Assigning `className` outright is shorter and
+  // is what the mockup does, but US-5.5 and US-5.6 are about to put their own
+  // classes on this same element -- a wholesale assignment would silently
+  // drop a visitor's "remove effects" the moment they changed world.
+  function applyWorld(name) {
+    var html = document.documentElement;
+    Object.keys(worlds).forEach(function (world) {
+      if (worlds[world]) { html.classList.remove(worlds[world]); }
+    });
+    if (worlds[name]) { html.classList.add(worlds[name]); }
+  }
+
+  function world() {
+    var stored = read(KEY.world);
+    return known(stored) ? stored : null;
+  }
+
+  function setWorld(name) {
+    if (!known(name)) { return; }
+    applyWorld(name);
+    write(KEY.world, name);
+  }
+
+  // Guarded like storage is, and for the same reason: this runs before
+  // anything else on the page and must not be the thing that throws.
+  function prefersCalm() {
+    return !!(window.matchMedia
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  // F-19: stillness is the DEFAULT for a visitor whose system asks for it,
+  // before they have expressed any preference -- but only until they do.
+  // Once a value is stored it wins, including a stored "on" from someone who
+  // turned the effects back on despite their system setting.
+  function effects() {
+    var stored = read(KEY.effects);
+    if (stored === null) { return !prefersCalm(); }
+    return stored === "1";
+  }
+
+  function setEffects(on) { write(KEY.effects, on ? "1" : "0"); }
+
+  // S14, independent of effects: on unless explicitly turned off, so a
+  // storage failure and a first visit both land on the authored experience.
+  function scares() { return read(KEY.scares) !== "0"; }
+
+  function setScares(on) { write(KEY.scares, on ? "1" : "0"); }
+
+  // The seam US-5.4, US-5.5 and US-5.6 wire their controls to. The setters
+  // PERSIST ONLY -- `.no-motion` and `.no-scares` are those stories' classes
+  // to define and apply, and inventing them here would be a root class that
+  // no stylesheet answers.
+  window.axePrefs = {
+    world: world, setWorld: setWorld,
+    effects: effects, setEffects: setEffects,
+    scares: scares, setScares: setScares
+  };
+
+  // `?theme=` won this render: leave it alone, and store nothing. A QA
+  // override that wrote itself to storage would stop being an override and
+  // become a choice the tester never made.
+  if (pinned) { return; }
+
+  // An unknown or absent value needs no default here -- the server already
+  // rendered one onto `<html>`. Doing nothing IS falling back to it, which is
+  // why this script carries no copy of `DEFAULT_THEME`.
+  var stored = world();
+  if (stored !== null) { applyWorld(stored); }
+})();
+</script>
+
 <!-- Tailwind's CDN build is dev-only by its own docs and is unversioned,
      so it cannot carry an SRI hash. Swap it for a compiled stylesheet
      before this is treated as a production deployment. -->
