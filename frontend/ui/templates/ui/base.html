@@ -260,6 +260,128 @@
   a{color:inherit}
   ::selection{background:var(--ember); color:#000}
 
+  /* ── THE WORLD CHOOSER (US-5.4) ──────────────────────────────────────
+     Shared chrome, so it belongs with the BASE rules rather than inside a
+     world: every token it reads is one all four worlds define, and a block
+     appended after `.clean` would be read as Clean's rules by anything
+     slicing this stylesheet by world.
+
+     Two constraints shape everything below, and both are invisible until
+     they bite:
+
+     1. NOTHING here may be spelled per-world -- no rule whose selector
+        joins a chooser class to a world's class. A world's palette block is
+        located by searching for its class name followed by an opening brace,
+        so a chooser rule written that way would be found FIRST and silently
+        become that world's palette for every token test in the suite. This
+        note originally demonstrated the mistake in its own text, and duly
+        broke the swatch test; prose in this file is part of the stylesheet.
+     2. The swatch and name colours are the MOCKUP's literals, verbatim and
+        in its order, because the mockup is this block's specification. They
+        are deliberately NOT `var()` indirections: a swatch is a picture of
+        a world the visitor is not currently in, and the only way to reach
+        another world's tokens from here would be to put that world's class
+        on the element -- which imports all twenty-odd of its descendant
+        rules along with the twelve properties actually wanted. Instead
+        `test_chooser.py` asserts every swatch value IS one of that world's
+        declared token values, so a retuned palette fails the suite rather
+        than quietly leaving the chooser advertising a colour the site no
+        longer uses.
+     ──────────────────────────────────────────────────────────────────── */
+
+  .chooser{
+    position:fixed; inset:0; z-index:500; display:flex; padding:20px 16px;
+    /* Not a token, and cannot become one: no world carries a near-opaque
+       backdrop, and CSS cannot take an alpha of a hex token. */
+    background:rgba(5,5,8,.97);
+    overflow-y:auto; overscroll-behavior:contain;
+  }
+  /* CORRECTION 1 to the mockup (F-13, the 320px gate). The mockup centres
+     with `align-items:center`, which CLIPS: a flex item taller than its
+     container overflows BOTH edges, and the overflow past the start edge
+     cannot be scrolled back to. Four cards at 320px are always taller, so
+     the heading and the first card would be stranded off the top -- the
+     locked door on the first screen F-13 names, arriving through one word
+     of CSS. `margin:auto` centres identically and an overflowing item keeps
+     its start edge in reach.
+
+     The wording above is deliberate, and so is this note's. PROSE IN THIS
+     FILE IS PAGE TEXT: every comment here renders into the bytes of every
+     page, the 404 included, and `tests.py` holds that page to a vocabulary.
+     A first draft of the paragraph above described a scroll edge in a word
+     the 404 may not contain, and turned the suite red. Check the wording of
+     a comment here as you would check the wording of a heading. */
+  .chooser-inner{max-width:900px; width:100%; margin:auto; text-align:center}
+  /* CORRECTION 2 (NFR-8). Explicit, because `display:flex` above outranks
+     the UA stylesheet's `[hidden]{display:none}` -- without this line a
+     CLOSED chooser still covers the page and still swallows every click.
+     This is why closing is `hidden` and never `opacity:0`. */
+  .chooser[hidden]{display:none}
+
+  .ch-lede{font-size:13px}
+  .ch-title{font-size:20px; line-height:1.6; margin:18px 0 12px}
+  .ch-note{font-size:14px; margin:0; color:var(--muted)}
+
+  .ch-grid{display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(205px,1fr)); margin-top:34px}
+  .ch-card{
+    width:100%; padding:26px 20px; text-align:left; cursor:pointer;
+    border:1px solid var(--line); background:var(--panel); color:var(--text);
+    font-family:'Share Tech Mono',monospace;
+  }
+  /* CORRECTION 3 (F-14). The mockup folds focus into the hover rule and then
+     sets `outline:none`, leaving a keyboard visitor a 1px border change to
+     find. Keep the native outline for focus and let hover be hover: the whole
+     interaction has to be completable with the keyboard alone. */
+  .ch-card:hover{transform:translateY(-5px); border-color:var(--ember)}
+  .ch-card:focus-visible{outline:2px solid var(--ember); outline-offset:2px}
+  @media (prefers-reduced-motion:no-preference){
+    .ch-card{transition:transform .18s ease, border-color .18s ease}
+  }
+  .ch-name{display:block; font-size:17px; margin:0 0 8px}
+  .ch-desc{display:block; font-size:13px; color:var(--muted); margin:0 0 16px; min-height:54px}
+  .ch-swatches{display:flex; gap:7px}
+  .ch-sw{width:30px; height:30px; border:1px solid rgba(255,255,255,.12)}
+
+  /* Each world's name accent and swatch row, exactly as the mockup draws
+     them. Grouped one world per line so a palette change is one line. */
+  .ch-name-clean{color:#5b9dd9}
+  .sw-clean-1{background:#0e1014} .sw-clean-2{background:#5b9dd9} .sw-clean-3{background:#6fb6a8} .sw-clean-4{background:#e8eaed}
+  .ch-name-manor{color:#ffd9a0}
+  .sw-manor-1{background:#0b0a14} .sw-manor-2{background:#ffb95e} .sw-manor-3{background:#9fd8e8} .sw-manor-4{background:#a3242b}
+  .ch-name-horror{color:#a82020}
+  .sw-horror-1{background:#08090a} .sw-horror-2{background:#8b1a1a} .sw-horror-3{background:#c9b99a} .sw-horror-4{background:#6f8f6a}
+  .ch-name-arcade{color:#ffc83d}
+  .sw-arcade-1{background:#07070a} .sw-arcade-2{background:#ff2d55} .sw-arcade-3{background:#ffc83d} .sw-arcade-4{background:#22d3ee}
+
+  .ch-skip{margin-top:28px}
+
+  /* THE WAY BACK (AC 11). Fixed, and in `base.html` rather than the nav, so
+     the promise the dialog makes -- "You can change it later, any time" --
+     is true on all three page types and not only the one that has a nav.
+     Rendered `hidden` and revealed by script for the same reason the chooser
+     is: with JavaScript off, a button whose only job is to open a dialog is
+     a dead control.
+     It is NOT the second step F11 forbids: it is not inside the dialog, not
+     reachable from it, and not on any path through the first visit -- which
+     is still four cards, a skip and Escape. z-index 490 sits below the
+     chooser's 500 and leaves US-5.5's and US-5.6's switches a cluster to
+     join rather than three more corners to claim. */
+  #site-controls{position:fixed; right:16px; bottom:16px; z-index:490; display:flex; gap:8px}
+  #site-controls[hidden]{display:none}
+  #site-controls .btn{min-height:44px}   /* F-13: a tap target, not a 34px one */
+
+  /* F-13 again. One column below 560px, and the padding drops to the 16px
+     gutter that is the BRD's floor. 320px less two 16px gutters leaves 288px
+     against the grid's 205px minimum, so the cards stay one per row and
+     nothing overflows sideways. */
+  @media (max-width:560px){
+    .chooser{padding:16px}
+    .ch-grid{grid-template-columns:1fr; gap:10px}
+    .ch-card{padding:16px 15px}
+    .ch-name{font-size:15px}
+    .ch-desc{min-height:0; margin-bottom:11px}
+  }
+
   /* ══ HAUNTED MANOR — candlelight, theatrical, warm. The default world. ══
      A theme's plain `.btn` rule has the same specificity (0,2,0) as the base
      `.btn:hover` and `.btn[aria-pressed="true"]`, and comes later, so it wins
@@ -370,5 +492,212 @@
 </head>
 <body>
 {% block content %}{% endblock %}
+
+{% comment %}
+  ── THE WORLD CHOOSER (US-5.4) ─────────────────────────────────────────
+  The thing BRD §2 turns on: asked to choose, a visitor self-selects into
+  the version that will persuade them, and the site stops guessing which
+  kind of visitor it is talking to.
+
+  🚨 RENDERED `hidden`, REVEALED BY SCRIPT -- never the other way round.
+  Markup that ships visible and is hidden by script hands a visitor with
+  JavaScript off a modal covering every page of the site with no way to
+  dismiss it: the "locked door on the first screen" F-13 describes, and a
+  straight breach of A1. This way round, JavaScript off means the dialog
+  is simply never seen and the portfolio behaves as it did before US-5.4.
+
+  Last in `<body>`, after the content, so a visitor with JavaScript off
+  does not meet the chooser's copy above the work -- and so the script
+  below needs no `DOMContentLoaded` wrapper to find these elements.
+
+  F11 fixes the shape: four cards, a skip, Escape. ONE step. The effects
+  and scares switches are US-5.5 and US-5.6 and are not chooser steps.
+
+  Every string here is the mockup's, in every world -- F-18.
+{% endcomment %}
+<div class="chooser" id="chooser" role="dialog" aria-modal="true" aria-labelledby="ch-title" hidden>
+  <div class="chooser-inner">
+    <p class="ch-lede ice-text">&gt; no visitor profile found ...</p>
+    <h2 class="ch-title display neon-text" id="ch-title">CHOOSE YOUR WORLD</h2>
+    <p class="ch-note">You can change it later, any time.</p>
+
+    {% comment %}
+      `<span>`s rather than the mockup's `<p>`s and `<div>`s: a `<button>`
+      takes phrasing content, and flow content inside one is invalid HTML
+      that browsers merely tolerate. The CSS makes them block again, so
+      nothing about the mockup's design changes.
+
+      The swatch rows are `aria-hidden` -- they are a picture of a palette
+      and have no text; the card's name and description already say what
+      it is (F-14).
+    {% endcomment %}
+    <div class="ch-grid">
+      <button class="ch-card" type="button" data-pick="clean">
+        <span class="ch-name ch-name-clean display">Just the Work</span>
+        <span class="ch-desc">No blood, no ghosts, nothing that moves. The portfolio, plainly.</span>
+        <span class="ch-swatches" aria-hidden="true">
+          <span class="ch-sw sw-clean-1"></span><span class="ch-sw sw-clean-2"></span>
+          <span class="ch-sw sw-clean-3"></span><span class="ch-sw sw-clean-4"></span>
+        </span>
+      </button>
+      <button class="ch-card" type="button" data-pick="manor">
+        <span class="ch-name ch-name-manor display">Haunted Manor</span>
+        <span class="ch-desc">Candlelight, drifting mist and a glow in the dark. Theatrical rather than frightening.</span>
+        <span class="ch-swatches" aria-hidden="true">
+          <span class="ch-sw sw-manor-1"></span><span class="ch-sw sw-manor-2"></span>
+          <span class="ch-sw sw-manor-3"></span><span class="ch-sw sw-manor-4"></span>
+        </span>
+      </button>
+      <button class="ch-card" type="button" data-pick="horror">
+        <span class="ch-name ch-name-horror display">Found Footage</span>
+        <span class="ch-desc">Dried blood, bone and a tracking band that will not hold. Cold and deliberate.</span>
+        <span class="ch-swatches" aria-hidden="true">
+          <span class="ch-sw sw-horror-1"></span><span class="ch-sw sw-horror-2"></span>
+          <span class="ch-sw sw-horror-3"></span><span class="ch-sw sw-horror-4"></span>
+        </span>
+      </button>
+      <button class="ch-card" type="button" data-pick="arcade">
+        <span class="ch-name ch-name-arcade display">Arcade</span>
+        <span class="ch-desc">Neon, scanlines and a high score. The original cut &mdash; loud and playful.</span>
+        <span class="ch-swatches" aria-hidden="true">
+          <span class="ch-sw sw-arcade-1"></span><span class="ch-sw sw-arcade-2"></span>
+          <span class="ch-sw sw-arcade-3"></span><span class="ch-sw sw-arcade-4"></span>
+        </span>
+      </button>
+    </div>
+
+    <button class="btn ch-skip" type="button" id="ch-skip">SKIP &mdash; SURPRISE ME</button>
+  </div>
+</div>
+
+<div id="site-controls" hidden>
+  <button class="btn" type="button" id="open-chooser">&#8635; CHANGE WORLD</button>
+</div>
+
+{% comment %}
+  A SECOND script, deliberately not an extension of the one in `<head>`.
+  That one has a single job -- be right BEFORE the browser paints -- and it
+  runs where this dialog does not exist yet. This one is its opposite: it
+  needs the DOM, it must not block the paint, and it must never delay the
+  work appearing. At the end of `<body>` it gets all three for free.
+
+  It touches storage NOWHERE. Every write goes through `window.axePrefs`,
+  which already owns NFR-7's guards -- so there is still exactly one place
+  in this codebase that handles a throwing `localStorage`, and exactly one
+  whitelist of what a world is.
+{% endcomment %}
+<script>
+(function () {
+  "use strict";
+
+  var chooser = document.getElementById("chooser");
+  var controls = document.getElementById("site-controls");
+  var reopen = document.getElementById("open-chooser");
+  // The same vocabulary the head script reads, from the same rendered block.
+  // The skip picks from THESE names, so "surprise me" can never offer a world
+  // the server does not know -- and no second world list exists in JavaScript.
+  var worlds = JSON.parse(document.getElementById("theme-worlds").textContent);
+  var names = Object.keys(worlds);
+  // Rendered from `theme_pinned`, exactly as the head script renders it: two
+  // readers of ONE server value, not a copy. `?theme=` is the QA override, and
+  // a tester who asked for a world must not be interrupted by the chooser.
+  var pinned = {{ theme_pinned|yesno:"true,false" }};
+  // Everything focusable in the dialog, in DOM order: four cards, then skip.
+  var stops = chooser.querySelectorAll("button");
+  var opener = null;
+
+  // Arcade's class is the empty string (US-5.2), so "no world class on
+  // <html>" does not mean "no world" -- it IS Arcade. Named from the
+  // vocabulary rather than spelled here, so this file still holds no world.
+  function unclassedWorld() {
+    return names.filter(function (name) { return !worlds[name]; })[0];
+  }
+
+  // The world the visitor is actually looking at, READ FROM THE PAGE rather
+  // than handed over by the server. Two reasons it is derived here. A server
+  // value would differ between a `?theme=clean` and a `?theme=horror` render
+  // and so would every byte of the two pages -- which is exactly what F-18's
+  // identical-documents test forbids. And `contains` rather than an equality
+  // check on `className`, because US-5.5 and US-5.6 are about to put their
+  // own classes on this same element.
+  function currentWorld() {
+    var applied = document.documentElement.classList;
+    var worn = names.filter(function (name) {
+      return worlds[name] && applied.contains(worlds[name]);
+    });
+    return worn.length ? worn[0] : unclassedWorld();
+  }
+
+  function openChooser() {
+    opener = document.activeElement;
+    chooser.hidden = false;
+    stops[0].focus();
+  }
+
+  // F-14: focus goes back where it came from. On a first visit it came from
+  // nowhere -- the dialog opened on load -- so it lands on the way back in
+  // instead, which is a real place rather than the top of the document.
+  function closeChooser() {
+    chooser.hidden = true;
+    var back = opener && opener !== document.body ? opener : reopen;
+    back.focus();
+  }
+
+  // The ONE write path. A card, the skip and Escape all arrive here, so
+  // "a choice applies, persists and closes" is written once and cannot
+  // diverge between the three ways of making one.
+  function choose(name) {
+    window.axePrefs.setWorld(name);
+    closeChooser();
+  }
+
+  function randomWorld() {
+    return names[Math.floor(Math.random() * names.length)];
+  }
+
+  // `aria-modal="true"` tells a screen reader the rest of the page is inert.
+  // Tab has to agree with that claim, or focus walks out of a dialog the
+  // reader has been told is the only thing on screen.
+  function trapTab(event) {
+    var edge = event.shiftKey ? stops[0] : stops[stops.length - 1];
+    if (document.activeElement !== edge) { return; }
+    event.preventDefault();
+    (event.shiftKey ? stops[stops.length - 1] : stops[0]).focus();
+  }
+
+  function onKeydown(event) {
+    if (chooser.hidden) { return; }
+    // NFR-9: Escape dismisses, and it persists the world ALREADY ON SCREEN.
+    // Nothing changes visually and nothing is chosen on the visitor's behalf
+    // that they were not already being shown -- it is the status quo made
+    // durable. Storing it is what makes F-16 true for the dismisser too:
+    // without it, the one visitor who said "go away" is the only one asked
+    // again on every page load, which is the wall NFR-9 forbids.
+    if (event.key === "Escape") { choose(currentWorld()); }
+    if (event.key === "Tab") { trapTab(event); }
+  }
+
+  // One listener on the grid rather than four on the cards. `closest` walks
+  // up from whatever was actually clicked -- a swatch, the name, the
+  // description -- to the card that owns it.
+  chooser.querySelector(".ch-grid").addEventListener("click", function (event) {
+    var card = event.target.closest("[data-pick]");
+    if (card) { choose(card.dataset.pick); }
+  });
+  document.getElementById("ch-skip").addEventListener("click", function () {
+    choose(randomWorld());
+  });
+  reopen.addEventListener("click", openChooser);
+  document.addEventListener("keydown", onKeydown);
+
+  // The control does nothing without this script, so this script reveals it.
+  controls.hidden = false;
+
+  // AC 1, entire. `world()` returns null when nothing valid is stored, and
+  // US-5.3 built that null to BE the "ask them" signal -- so a returning
+  // visitor is never asked, and neither is anyone on a pinned render.
+  if (!pinned && window.axePrefs.world() === null) { openChooser(); }
+})();
+</script>
 </body>
 </html>
