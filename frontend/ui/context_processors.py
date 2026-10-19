@@ -10,17 +10,27 @@ would drop out of their chosen world onto an Arcade page. Django builds a
 
 The resolver and the request-side source are deliberately TWO functions.
 `root_class` is pure and knows nothing about HTTP; `theme` is the only line in
-the codebase that knows a world name arrives as a query parameter. US-5.3
-replaces the source with a stored preference by rewriting that one line, and
-every rule about what a name resolves to stays put.
+the codebase that knows a world name arrives as a query parameter.
+
+US-5.2 predicted that US-5.3 would REPLACE that line with a stored preference.
+It did not, and the correction is worth recording rather than leaving the next
+reader to wonder which document is stale: a preference lives in `localStorage`,
+which the server cannot read at render time. So the query parameter stays
+exactly as it was -- the permanent QA override -- and the stored world is
+applied by the inline script in `base.html`, after this render and before the
+browser paints. What US-5.3 added here is not a new SOURCE but the two values
+that script needs and must not invent for itself.
 """
 
 from django.http import HttpRequest
 
-# The query parameter is this story's only source of a world name. Persistence
-# and the chooser are US-5.3 to US-5.6; until they land this is both how a
-# theme is selected and how the by-hand 320px check reaches all four worlds,
-# and it stays afterwards as the QA override that needs no stored state.
+# The SERVER's only source of a world name, and now permanently so. US-5.2
+# expected US-5.3 to replace this with a stored preference; US-5.3 instead put
+# the preference on the client, where storage actually lives, so this never
+# was the scaffolding it looked like. What it is is the QA override: the way
+# to reach a named world with no stored state, which is what the by-hand pass
+# across all four worlds depends on. A render it pins is left alone by the
+# preference script in `base.html` and writes nothing to storage.
 THEME_PARAM = "theme"
 
 # The four worlds (BRD S11). Named rather than written inline because a typo
@@ -59,8 +69,8 @@ def root_class(name: str | None) -> str:
     return ROOT_CLASSES.get(name, ROOT_CLASSES[DEFAULT_THEME])
 
 
-def theme(request: HttpRequest) -> dict[str, str]:
-    """Expose the active world's root class to every template render.
+def theme(request: HttpRequest) -> dict[str, object]:
+    """Expose the active world, the vocabulary and the pin flag to every render.
 
     The single line in the codebase that knows where a world name comes from.
     Note what it does NOT do: supply `DEFAULT_THEME` as the `get` default. An
@@ -68,7 +78,24 @@ def theme(request: HttpRequest) -> dict[str, str]:
     inside `root_class` -- so "unknown becomes the default" is written once.
     Defaulting here as well would be a second copy of that rule, free to drift
     from the first the day either changes.
+
+    The three keys are spelled literally in `base.html`, as a Django template
+    must, so renaming one means editing that template in the same commit.
     """
-    # `base.html` spells `theme_class` literally, as a Django template must,
-    # so renaming this key means editing that template in the same commit.
-    return {"theme_class": root_class(request.GET.get(THEME_PARAM))}
+    return {
+        "theme_class": root_class(request.GET.get(THEME_PARAM)),
+        # The whole vocabulary, handed to the client so the inline script never
+        # spells a world name of its own. It needs BOTH halves of this mapping:
+        # the keys are the whitelist it validates a stored value against, and
+        # the values are what it puts on `<html>` -- including Arcade's empty
+        # string, which no list of names could have carried. A second copy in
+        # JavaScript would be free to drift from this one, and the symptom of
+        # the drift would be a page with no palette rather than an error.
+        "theme_worlds": ROOT_CLASSES,
+        # Whether this render was pinned by the URL. The script restores a
+        # stored world only when it was not, because `?theme=` is the QA
+        # override: a tester who asks for one world must not be handed the
+        # world they happen to have stored, and must not have their own
+        # stored preference overwritten by looking at someone else's.
+        "theme_pinned": THEME_PARAM in request.GET,
+    }
