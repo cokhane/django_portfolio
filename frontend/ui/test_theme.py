@@ -28,6 +28,7 @@ from .context_processors import (
     DEFAULT_THEME,
     HORROR,
     MANOR,
+    ROOT_CLASSES,
     THEME_PARAM,
     root_class,
 )
@@ -113,6 +114,43 @@ def _declaration_block(css, selector):
     start = css.index(opening) + len(opening)
     end = css.index("}", start)
     return css[start:end]
+
+
+def _rules_naming(css, class_name):
+    """Every rule in `css` whose SELECTOR list mentions `.class_name`.
+
+    `[^{}]*` cannot cross a brace, so a match is always one selector list and
+    never a run of rules -- which is what makes counting these a count of
+    RULES rather than of mentions. The word boundary keeps a search for one
+    preference class off another whose name merely extends it.
+
+    Shared by the two stories that hang a preference class on the root
+    element: `test_effects.py` counts the stillness rules, `test_scares.py`
+    the scare ones. Both ask the same question -- is this still ONE block, or
+    has it grown into a per-animation list somebody has to maintain?
+    """
+    return re.findall(rf"[^{{}}]*\.{class_name}\b[^{{}}]*\{{", css)
+
+
+def _world_join(css, class_name):
+    """The first selector joining `.class_name` to a WORLD's class, or `None`.
+
+    Built from `ROOT_CLASSES` rather than a typed list, so a fifth world
+    tomorrow is checked without anyone remembering to add it. Arcade is
+    skipped because its class is the empty string -- it IS `:root`, so there
+    is no class to join.
+
+    The mistake this catches is silent rather than ugly. `_declaration_block`
+    locates a world's palette by its class name followed by an opening brace,
+    so a rule joining a preference class to a world's would be found FIRST and
+    read as that world's palette -- for every token the suite checks.
+    """
+    joined = "|".join(
+        rf"\.{world}\b[^{{}}]*\.{class_name}\b|\.{class_name}\b[^{{}}]*\.{world}\b"
+        for world in ROOT_CLASSES.values()
+        if world
+    )
+    return re.search(joined, css)
 
 
 def _without_comments(css):

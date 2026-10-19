@@ -124,6 +124,25 @@ def _render_every_page(client):
     return pages
 
 
+def _assert_work_survives_without_scripts(case, html):
+    """Every project title is still on `html` once the scripts are stripped.
+
+    A1, and every story that adds a fixed, always-on-screen element asserts
+    it -- the stillness control (US-5.5) and the scares switch (US-5.6) so
+    far -- because each one adds the same risk: a page that quietly stops
+    being readable for a visitor who cannot dismiss what floats over it.
+
+    ONE definition, called from each of those suites, rather than the same
+    three lines written out in each. A function taking the case rather than a
+    mixin, for the reason `_render_every_page` records: the classes that want
+    it already carry three `@patch` decorators, and a fourth inherited from a
+    base class makes a failure hard to read.
+    """
+    for project in PROJECTS:
+        with case.subTest(project=project["slug"]):
+            case.assertIn(project["title"], html)
+
+
 def _without_scripts(html):
     """`html` as a visitor with JavaScript disabled receives it.
 
