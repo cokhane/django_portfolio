@@ -1,0 +1,275 @@
+"""Tests for the preference store and the portfolio that does not need it.
+
+A separate module for the reason `test_theme.py` and `test_hire_me_panel.py`
+record: `tests.py` is already 802 lines against pylint's `too-many-lines`
+ceiling of 1000. The story's Scope names `tests.py` because it was written
+before that split; the split is the newer decision and the one the repo
+follows.
+
+**Django cannot execute JavaScript.** `SimpleTestCase` renders templates; it
+does not run them. So these tests deliberately do NOT try to prove that the
+store works -- they prove the two things a server-side suite genuinely can,
+and they are the two that matter most:
+
+1. **The script is there, and shaped the way NFR-7 requires** -- every storage
+   access inside a `try`, no console noise, the vocabulary rendered from
+   Python rather than spelled a second time in JavaScript.
+2. **The page never needed it.** With every `<script>` removed, the portfolio
+   is still a navigable portfolio (**A1**). That is the more important
+   property of the two, and the only one a visitor with JavaScript off
+   experiences.
+
+The branching itself -- unknown values, storage that throws, the
+reduced-motion default -- was exercised by running the RENDERED script against
+a fake DOM under Node, and by hand in a private window. Both are recorded in
+the story's Implementation notes, because neither can live in this file.
+"""
+
+import json
+import re
+from unittest.mock import patch
+
+from django.test import SimpleTestCase
+from django.urls import reverse
+
+from .api import PortfolioNotFoundError
+from .context_processors import CLEAN, ROOT_CLASSES, THEME_PARAM
+from .tests import AVAILABILITY, CONTACT_HREF, PITCH_LINE, PROJECT, PROJECTS, SKILLS
+
+# The mockup's three keys, unchanged by this story so that a visitor who saw
+# the mockup and then the site keeps their choice. Pinned as a set because
+# their ORDER in the script is a style question, but their presence is not.
+KEYS = ("axe.theme", "axe.motion", "axe.scares")
+
+# The owned inline script -- the one with no `src` and no `type`. Anchored
+# that way so neither the HTMX tag, the Tailwind tag nor the `json_script`
+# block can be mistaken for it; the `json_script` block in particular is a
+# `<script>` element too, which is the trap this pattern avoids.
+OWNED_SCRIPT = re.compile(r"<script>(.*?)</script>", re.S)
+
+# Every script element of any kind, for the JavaScript-off simulation.
+ANY_SCRIPT = re.compile(r"<script\b[^>]*>.*?</script>", re.S)
+
+# The vocabulary block `json_script` emits.
+WORLDS_JSON = re.compile(
+    r'<script id="theme-worlds" type="application/json">(.*?)</script>', re.S
+)
+
+DETAIL_URL = reverse("ui:project-detail", kwargs={"slug": PROJECT["slug"]})
+
+
+def _owned_script(html):
+    """The preference script's source, which must be exactly one element."""
+    found = [block for block in OWNED_SCRIPT.findall(html) if "axePrefs" in block]
+    assert len(found) == 1, f"expected one preference script, found {len(found)}"
+    return found[0]
+
+
+def _code_lines(script):
+    """`script`'s lines with the `//` commentary dropped.
+
+    The guard test below counts how many lines reach storage, and the script's
+    comments explain at length why storage is dangerous -- so a comment that
+    merely says the word would read as a third, unguarded access and fail a
+    test about code that never changed.
+    """
+    return [line for line in script.splitlines() if not line.strip().startswith("//")]
+
+
+def _without_scripts(html):
+    """`html` as a visitor with JavaScript disabled receives it.
+
+    Removing the elements is a closer simulation than it looks: an inert
+    `hx-get` attribute left behind changes nothing a reader can see, whereas a
+    `<script>` that was carrying content would vanish -- which is precisely
+    the failure A1 forbids and this helper exposes.
+    """
+    return ANY_SCRIPT.sub("", html)
+
+
+@patch("ui.views.fetch_availability", return_value=AVAILABILITY)
+@patch("ui.views.fetch_skills", return_value=SKILLS)
+@patch("ui.views.fetch_projects", return_value=PROJECTS)
+class PreferenceScriptTests(SimpleTestCase):
+    """The script's presence and shape -- the half a template render can see."""
+
+    def _home(self, query=None):
+        """The home page's HTML, optionally pinned to a world."""
+        return self.client.get(reverse("ui:home"), query or {}).content.decode()
+
+    @patch("ui.views.fetch_project", return_value=PROJECT)
+    def test_the_script_is_present_on_every_page(self, *_mocks):
+        """AC 8, on all three renders -- including the one no view of ours owns.
+
+        The 404 is the reason this is asserted per page rather than once. It is
+        rendered by Django's own `page_not_found`, so it reaches `base.html`
+        through the context processor alone; a preference mechanism wired into
+        a view would be absent exactly there, and a visitor who mistyped a URL
+        would lose their world on the way back.
+        """
+        pages = {"home": self._home(), "detail": self.client.get(DETAIL_URL).content.decode()}
+        with patch("ui.views.fetch_project", side_effect=PortfolioNotFoundError("gone")):
+            pages["404"] = self.client.get(DETAIL_URL).content.decode()
+
+        for name, html in pages.items():
+            with self.subTest(page=name):
+                script = _owned_script(html)
+                for key in KEYS:
+                    self.assertIn(key, script)
+
+    def test_the_script_runs_before_the_stylesheet_and_the_cdn(self, *_mocks):
+        """AC 9: the before-paint decision, pinned structurally rather than remembered.
+
+        The class must be corrected before the browser paints, which is what
+        makes a returning Found Footage visitor's page never flash candlelight.
+        Being in `<head>` is what delivers that -- nothing is painted while
+        `<head>` is still parsing. Being ABOVE `cdn.tailwindcss.com` is the
+        second half: both tags are render-blocking, so a script placed after
+        the CDN waits on a third-party fetch before setting a class it already
+        knows. An edit that moves it below either one is silent in every test
+        but this, and visible to a visitor as a flash.
+        """
+        head = self._home().split("</head>", 1)[0]
+
+        self.assertLess(head.index("axePrefs"), head.index("cdn.tailwindcss.com"))
+        self.assertLess(head.index("cdn.tailwindcss.com"), head.index("<style>"))
+
+    def test_the_world_vocabulary_is_rendered_from_the_resolver(self, *_mocks):
+        """AC 4: one definition of what a world is, and it is Python's.
+
+        The script validates a stored value against this mapping and reads the
+        class out of it, so a hand-written copy in JavaScript would be a second
+        whitelist free to drift from `ROOT_CLASSES`. The symptom of that drift
+        is not an error -- it is a page with no palette, or a world that
+        silently stops being selectable.
+
+        Asserted as the whole mapping, not just its keys: Arcade's class is the
+        empty string, and a names-only list could not carry it.
+        """
+        rendered = WORLDS_JSON.search(self._home())
+
+        self.assertIsNotNone(rendered, "the vocabulary block is missing")
+        self.assertEqual(json.loads(rendered.group(1)), ROOT_CLASSES)
+
+    def test_every_storage_access_is_guarded(self, *_mocks):
+        """AC 2 (NFR-7): an unhandled throw here is a blank page, not a portfolio.
+
+        Three assertions, because the rule has three halves that fail
+        differently. Storage is reached exactly twice, so there is no third
+        access that skipped the discipline. Each of those lines carries its own
+        `try`. And each spells `window.localStorage`, because the throw happens
+        on the PROPERTY ACCESS in a private window, not only on the call -- a
+        bare `localStorage.getItem` inside a `try` would be guarded by
+        accident and a reader would not see why it had to be.
+        """
+        script = _owned_script(self._home())
+        touching = [line for line in _code_lines(script) if "localStorage" in line]
+
+        self.assertEqual(len(touching), 2, f"expected two storage accesses, got {touching}")
+        for line in touching:
+            with self.subTest(line=line.strip()):
+                self.assertIn("try {", line)
+                self.assertIn("window.localStorage", line)
+
+    def test_the_script_never_logs(self, *_mocks):
+        """AC 2: the catch is silent, and that is correct here and only here.
+
+        A visitor who has blocked site data would otherwise meet a console
+        error on every page load of every visit -- noise forever, for a
+        condition the site handles completely. The one honest behaviour is to
+        fall back to the default and carry on.
+        """
+        self.assertNotIn("console.", _owned_script(self._home()))
+
+    def test_matchmedia_is_guarded_too(self, *_mocks):
+        """`matchMedia` is tested for before it is called.
+
+        It exists everywhere relevant, so this looks like superstition until
+        you notice where the script runs: first in `<head>`, before anything
+        else on the page. Whatever it throws, it throws before the portfolio
+        exists. The defensive form costs one `&&`.
+
+        Whitespace is collapsed before matching so that re-wrapping the line
+        cannot fail a test about a guard that is still there. What is pinned
+        is the `&&`, which is the whole assertion.
+        """
+        collapsed = " ".join(_owned_script(self._home()).split())
+
+        self.assertIn("window.matchMedia && window.matchMedia(", collapsed)
+
+    def test_a_pinned_render_tells_the_script_so(self, *_mocks):
+        """The `?theme=` QA override survives this story (US-5.2's Q3).
+
+        The server knows whether the URL asked for a world; the client would
+        have to re-parse `location.search` to find out, which would put a
+        second reader of the query parameter in the codebase. So the server
+        says, and the script's first guard obeys. Without this, a tester with
+        a world stored would be handed their own world instead of the one they
+        asked for -- and the override would look broken rather than overridden.
+        """
+        self.assertIn("var pinned = true;", _owned_script(self._home({THEME_PARAM: CLEAN})))
+        self.assertIn("var pinned = false;", _owned_script(self._home()))
+
+
+@patch("ui.views.fetch_availability", return_value=AVAILABILITY)
+@patch("ui.views.fetch_skills", return_value=SKILLS)
+@patch("ui.views.fetch_projects", return_value=PROJECTS)
+class NoJavaScriptTests(SimpleTestCase):
+    """AC 7 (A1): with JavaScript off, the site is still a navigable portfolio.
+
+    The store is the first JavaScript this site owns, which makes this the
+    moment the no-JavaScript property stops being free and starts needing a
+    guard. Every assertion here runs against the page with every `<script>`
+    element removed.
+    """
+
+    def _stripped_home(self):
+        """The home page as a visitor with JavaScript disabled receives it."""
+        return _without_scripts(self.client.get(reverse("ui:home")).content.decode())
+
+    def test_every_project_is_reachable_without_script(self, *_mocks):
+        """A1's load-bearing half: the work is the point of the site.
+
+        Each project is a plain `<a href>` row rendered server-side into the
+        grid, so this passes today by construction -- and "by construction" is
+        a property of TODAY's construction. A later story that moved the grid
+        behind an HTMX load, or hid it pending the chooser, would take every
+        project off the page for a visitor with JavaScript off and nothing
+        else would notice.
+        """
+        html = self._stripped_home()
+
+        for project in PROJECTS:
+            with self.subTest(project=project["slug"]):
+                self.assertIn(reverse("ui:project-detail", kwargs={"slug": project["slug"]}), html)
+                self.assertIn(project["title"], html)
+
+    def test_every_section_reads_without_script(self, *_mocks):
+        """A1's other half: the sections are readable and the nav still points at them."""
+        html = self._stripped_home()
+
+        self.assertIn(PITCH_LINE, html)
+        self.assertIn(CONTACT_HREF, html)
+        for anchor in ("#about", "#projects", "#contact"):
+            with self.subTest(anchor=anchor):
+                self.assertIn(f'href="{anchor}"', html)
+
+    @patch("ui.views.fetch_project", return_value=PROJECT)
+    def test_a_project_page_reads_without_script(self, *_mocks):
+        """A case study is prose and a server render; nothing about it needs a script."""
+        html = _without_scripts(self.client.get(DETAIL_URL).content.decode())
+
+        self.assertIn(PROJECT["title"], html)
+        self.assertIn(PROJECT["problem"], html)
+
+    def test_the_default_world_is_server_rendered(self, *_mocks):
+        """AC 6: Haunted Manor arrives on `<html>` without the script's help.
+
+        This is what makes "do nothing" the correct fallback for an
+        unrecognised stored value: the default is already on the element
+        before any JavaScript runs, so the script carries no copy of
+        `DEFAULT_THEME` to drift from the server's.
+        """
+        html = self._stripped_home()
+
+        self.assertIn('<html lang="en" class="manor">', html)
