@@ -58,11 +58,34 @@ WORLDS_JSON = re.compile(
 DETAIL_URL = reverse("ui:project-detail", kwargs={"slug": PROJECT["slug"]})
 
 
-def _owned_script(html):
-    """The preference script's source, which must be exactly one element."""
-    found = [block for block in OWNED_SCRIPT.findall(html) if "axePrefs" in block]
-    assert len(found) == 1, f"expected one preference script, found {len(found)}"
+def _inline_script(html, marker):
+    """The one owned inline script whose source contains `marker`.
+
+    Parameterised because this package now reads two of them -- the store and
+    US-5.4's chooser -- and "find the attribute-less `<script>` that is this
+    one, and assert there is exactly one of it" is the same job both times.
+    The marker is the only thing that differs, so the marker is the argument.
+    """
+    found = [block for block in OWNED_SCRIPT.findall(html) if marker in block]
+    assert len(found) == 1, f"expected one script matching {marker!r}, found {len(found)}"
     return found[0]
+
+
+def _owned_script(html):
+    """The preference STORE's source, which must be exactly one element.
+
+    Anchored on `window.axePrefs =`, the line that DEFINES the API, rather
+    than on the name `axePrefs` anywhere in the block. The distinction became
+    load-bearing the moment US-5.4 added a second inline script: the chooser
+    calls `window.axePrefs.setWorld`, so a filter on the bare name matches it
+    too and every assertion below starts reading whichever block the regex
+    reached first. US-5.5 and US-5.6 add two more callers.
+
+    The definition is the right anchor because there is exactly one of it, by
+    the same rule that makes this helper worth having: the store is the one
+    place storage is touched, so it is the one place the API is created.
+    """
+    return _inline_script(html, "window.axePrefs =")
 
 
 def _code_lines(script):
