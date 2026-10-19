@@ -106,7 +106,18 @@
     return stored === "1";
   }
 
-  function setEffects(on) { write(KEY.effects, on ? "1" : "0"); }
+  // On `<html>` like the world's class, and on its own, so a world change
+  // never drops it.
+  function applyEffects(on) {
+    document.documentElement.classList.toggle("no-motion", !on);
+  }
+
+  // The `setWorld` shape, and for the same reason: apply, then write. One
+  // path, so the class on the page and the value in storage cannot disagree.
+  function setEffects(on) {
+    applyEffects(on);
+    write(KEY.effects, on ? "1" : "0");
+  }
 
   // S14, independent of effects: on unless explicitly turned off, so a
   // storage failure and a first visit both land on the authored experience.
@@ -114,15 +125,19 @@
 
   function setScares(on) { write(KEY.scares, on ? "1" : "0"); }
 
-  // The seam US-5.4, US-5.5 and US-5.6 wire their controls to. The setters
-  // PERSIST ONLY -- `.no-motion` and `.no-scares` are those stories' classes
-  // to define and apply, and inventing them here would be a root class that
-  // no stylesheet answers.
+  // The seam US-5.4, US-5.5 and US-5.6 wire their controls to. `setWorld`
+  // and `setEffects` APPLY their class and persist the choice; `setScares`
+  // persists only, because `.no-scares` is US-5.6's class to define and a
+  // root class no stylesheet answers would be worse than none.
   window.axePrefs = {
     world: world, setWorld: setWorld,
     effects: effects, setEffects: setEffects,
     scares: scares, setScares: setScares
   };
+
+  // Above the pin guard, because `?theme=` pins the WORLD and nothing else;
+  // and in `<head>`, so stillness is painted rather than corrected after.
+  applyEffects(effects());
 
   // `?theme=` won this render: leave it alone, and store nothing. A QA
   // override that wrote itself to storage would stop being an override and
@@ -207,19 +222,21 @@
   }
   .display{font-family:'Press Start 2P',monospace; line-height:1.6; letter-spacing:.02em}
 
-  /* CRT scanlines + vignette, purely decorative */
+  /* CRT scanlines + vignette, decorative and click-transparent. They sit
+     just below the control cluster, so they never darken the one control
+     that withdraws them; the ladder is in the stillness block below. */
   body::before{
-    content:''; position:fixed; inset:0; pointer-events:none; z-index:9999;
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:489;
     background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);
     mix-blend-mode:multiply;
   }
   body::after{
-    content:''; position:fixed; inset:0; pointer-events:none; z-index:9998;
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:488;
     background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.75) 100%);
   }
-  @media (prefers-reduced-motion:no-preference){
-    .flicker{animation:flicker 4.5s infinite}
-  }
+  /* No reduced-motion media query anywhere in this stylesheet: the system
+     preference is read once, by the store, and expressed as the class. */
+  .flicker{animation:flicker 4.5s infinite}
   @keyframes flicker{0%,97%,100%{opacity:1}98%{opacity:.78}99%{opacity:.9}}
 
   /* HUD panel with corner brackets */
@@ -334,9 +351,7 @@
      interaction has to be completable with the keyboard alone. */
   .ch-card:hover{transform:translateY(-5px); border-color:var(--ember)}
   .ch-card:focus-visible{outline:2px solid var(--ember); outline-offset:2px}
-  @media (prefers-reduced-motion:no-preference){
-    .ch-card{transition:transform .18s ease, border-color .18s ease}
-  }
+  .ch-card{transition:transform .18s ease, border-color .18s ease}
   .ch-name{display:block; font-size:17px; margin:0 0 8px}
   .ch-desc{display:block; font-size:13px; color:var(--muted); margin:0 0 16px; min-height:54px}
   .ch-swatches{display:flex; gap:7px}
@@ -366,7 +381,12 @@
      is still four cards, a skip and Escape. z-index 490 sits below the
      chooser's 500 and leaves US-5.5's and US-5.6's switches a cluster to
      join rather than three more corners to claim. */
-  #site-controls{position:fixed; right:16px; bottom:16px; z-index:490; display:flex; gap:8px}
+  #site-controls{
+    position:fixed; right:16px; bottom:16px; z-index:490; display:flex; gap:8px;
+    /* Two buttons measure about 340px, and a right-anchored fixed row grows
+       LEFTWARDS off a 320px screen. Wrapped, both rows stay on it. */
+    flex-wrap:wrap; justify-content:flex-end; max-width:calc(100% - 32px);
+  }
   #site-controls[hidden]{display:none}
   #site-controls .btn{min-height:44px}   /* F-13: a tap target, not a 34px one */
 
@@ -381,6 +401,19 @@
     .ch-name{font-size:15px}
     .ch-desc{min-height:0; margin-bottom:11px}
   }
+
+  /* ── STILLNESS (US-5.5) ──────────────────────────────────────────────
+     One class, one block, no per-animation list, so epic 6's unbuilt
+     animations are covered already. `!important` because a universal
+     selector loses to every themed rule and to an inline animation timing,
+     and a visitor's preference outranking the author's is what it is for.
+     Ladder: epic 6 ceiling 455 · glass 488/489 · controls 490 · chooser 500.
+     Never join this class to a world's class in one selector -- the theme
+     suite would read the rule as that world's palette. The contract epic 6
+     builds to is in this story's Implementation notes.
+     ──────────────────────────────────────────────────────────────────── */
+  .no-motion *,.no-motion *::before,.no-motion *::after{animation:none !important; transition:none !important}
+  .no-motion body::before,.no-motion body::after{display:none}
 
   /* ══ HAUNTED MANOR — candlelight, theatrical, warm. The default world. ══
      A theme's plain `.btn` rule has the same specificity (0,2,0) as the base
@@ -571,6 +604,8 @@
 </div>
 
 <div id="site-controls" hidden>
+  <button class="btn" type="button" id="toggle-effects" aria-pressed="false"
+          aria-label="Remove all effects and animation.">REMOVE EFFECTS</button>
   <button class="btn" type="button" id="open-chooser">&#8635; CHANGE WORLD</button>
 </div>
 
@@ -580,6 +615,10 @@
   runs where this dialog does not exist yet. This one is its opposite: it
   needs the DOM, it must not block the paint, and it must never delay the
   work appearing. At the end of `<body>` it gets all three for free.
+
+  It owns the whole control cluster, not just the dialog: the chooser and
+  its way back (US-5.4), and the stillness switch (US-5.5). Both are views
+  of the store and neither holds an answer of its own.
 
   It touches storage NOWHERE. Every write goes through `window.axePrefs`,
   which already owns NFR-7's guards -- so there is still exactly one place
@@ -593,6 +632,7 @@
   var chooser = document.getElementById("chooser");
   var controls = document.getElementById("site-controls");
   var reopen = document.getElementById("open-chooser");
+  var stillness = document.getElementById("toggle-effects");
   // The same vocabulary the head script reads, from the same rendered block.
   // The skip picks from THESE names, so "surprise me" can never offer a world
   // the server does not know -- and no second world list exists in JavaScript.
@@ -655,6 +695,19 @@
     return names[Math.floor(Math.random() * names.length)];
   }
 
+  // A view of the store: it asks `effects()` rather than holding a flag that
+  // could drift. `aria-pressed` is true once the effects ARE removed, which
+  // also earns the pressed styling every world defines. Strings are F-18's.
+  function renderStillness() {
+    var on = window.axePrefs.effects();
+    stillness.textContent = on ? "REMOVE EFFECTS" : "RESTORE EFFECTS";
+    stillness.setAttribute("aria-pressed", String(!on));
+    stillness.setAttribute(
+      "aria-label",
+      on ? "Remove all effects and animation." : "Restore all effects and animation."
+    );
+  }
+
   // `aria-modal="true"` tells a screen reader the rest of the page is inert.
   // Tab has to agree with that claim, or focus walks out of a dialog the
   // reader has been told is the only thing on screen.
@@ -688,9 +741,17 @@
     choose(randomWorld());
   });
   reopen.addEventListener("click", openChooser);
+  stillness.addEventListener("click", function () {
+    window.axePrefs.setEffects(!window.axePrefs.effects());
+    renderStillness();
+  });
   document.addEventListener("keydown", onKeydown);
 
-  // The control does nothing without this script, so this script reveals it.
+  // Correct the server's guess while the cluster is still hidden; that
+  // ordering is why the visitor never sees the label flip.
+  renderStillness();
+
+  // The controls do nothing without this script, so this script reveals them.
   controls.hidden = false;
 
   // AC 1, entire. `world()` returns null when nothing valid is stored, and
