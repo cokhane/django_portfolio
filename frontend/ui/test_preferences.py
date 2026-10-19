@@ -99,6 +99,31 @@ def _code_lines(script):
     return [line for line in script.splitlines() if not line.strip().startswith("//")]
 
 
+def _render_every_page(client):
+    """Home, a project page and a 404 -- the three renders of `base.html`.
+
+    Shared because the reason to run a test over all three is shared, and it
+    is not obvious: `base.html` has three renderers and one of them is not
+    ours. Django's own `page_not_found` builds the 404, reaching the template
+    through the context processor alone, so anything wired into a view is
+    present on two pages and absent on the third -- the page a visitor
+    reaches by mistake, and the one they most need a way out of.
+
+    A function taking the client rather than a mixin: the test classes that
+    want it already carry three `@patch` decorators, and a fourth inherited
+    from a base class is the kind of stacking that makes a failure hard to
+    read.
+    """
+    with patch("ui.views.fetch_project", return_value=PROJECT):
+        pages = {
+            "home": client.get(reverse("ui:home")).content.decode(),
+            "detail": client.get(DETAIL_URL).content.decode(),
+        }
+    with patch("ui.views.fetch_project", side_effect=PortfolioNotFoundError("gone")):
+        pages["404"] = client.get(DETAIL_URL).content.decode()
+    return pages
+
+
 def _without_scripts(html):
     """`html` as a visitor with JavaScript disabled receives it.
 
@@ -120,7 +145,6 @@ class PreferenceScriptTests(SimpleTestCase):
         """The home page's HTML, optionally pinned to a world."""
         return self.client.get(reverse("ui:home"), query or {}).content.decode()
 
-    @patch("ui.views.fetch_project", return_value=PROJECT)
     def test_the_script_is_present_on_every_page(self, *_mocks):
         """AC 8, on all three renders -- including the one no view of ours owns.
 
@@ -129,12 +153,14 @@ class PreferenceScriptTests(SimpleTestCase):
         through the context processor alone; a preference mechanism wired into
         a view would be absent exactly there, and a visitor who mistyped a URL
         would lose their world on the way back.
-        """
-        pages = {"home": self._home(), "detail": self.client.get(DETAIL_URL).content.decode()}
-        with patch("ui.views.fetch_project", side_effect=PortfolioNotFoundError("gone")):
-            pages["404"] = self.client.get(DETAIL_URL).content.decode()
 
-        for name, html in pages.items():
+        That reason is why `_render_every_page` exists, and this test is a
+        caller of it like the others. It was the original copy, and leaving it
+        hand-rolled here would have left the knowledge in two places in the one
+        module that defines the helper -- so a change to how the 404 is reached
+        would need finding twice.
+        """
+        for name, html in _render_every_page(self.client).items():
             with self.subTest(page=name):
                 script = _owned_script(html)
                 for key in KEYS:

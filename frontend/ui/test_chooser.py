@@ -32,13 +32,10 @@ from unittest.mock import patch
 from django.test import SimpleTestCase
 from django.urls import reverse
 
-from .api import PortfolioNotFoundError
 from .context_processors import ROOT_CLASSES, THEME_PARAM
-from .test_preferences import _inline_script, _without_scripts
+from .test_preferences import _inline_script, _render_every_page, _without_scripts
 from .test_theme import _declaration_block, _stylesheet, _without_comments
-from .tests import AVAILABILITY, PROJECT, PROJECTS, SKILLS
-
-DETAIL_URL = reverse("ui:project-detail", kwargs={"slug": PROJECT["slug"]})
+from .tests import AVAILABILITY, PROJECTS, SKILLS
 
 # Each world's display name, frozen by F-18: a world changes the palette,
 # never the words, so these are the mockup's strings and a story that wanted
@@ -126,13 +123,9 @@ class ChooserMarkupTests(SimpleTestCase):
         """The home page's HTML, optionally pinned to a world."""
         return self.client.get(reverse("ui:home"), query or {}).content.decode()
 
-    @patch("ui.views.fetch_project", return_value=PROJECT)
-    def _pages(self, *_mocks):
-        """Home, a project page and a 404 -- the three renders of `base.html`."""
-        pages = {"home": self._home(), "detail": self.client.get(DETAIL_URL).content.decode()}
-        with patch("ui.views.fetch_project", side_effect=PortfolioNotFoundError("gone")):
-            pages["404"] = self.client.get(DETAIL_URL).content.decode()
-        return pages
+    def _pages(self):
+        """The three renders of `base.html`, from the shared helper."""
+        return _render_every_page(self.client)
 
     def test_the_chooser_ships_hidden_on_every_page(self, *_mocks):
         """AC 5, and the assertion this story exists to protect (A1, F-13).
