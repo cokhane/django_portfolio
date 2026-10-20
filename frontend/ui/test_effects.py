@@ -33,15 +33,16 @@ from unittest.mock import patch
 from django.test import SimpleTestCase
 from django.urls import reverse
 
-from .context_processors import ROOT_CLASSES, THEME_PARAM
+from .context_processors import THEME_PARAM
 from .test_chooser import CHOOSER_MARKER, _css, _open_tag
 from .test_preferences import (
+    _assert_work_survives_without_scripts,
     _inline_script,
     _owned_script,
     _render_every_page,
     _without_scripts,
 )
-from .test_theme import _declaration_block, _root_tag
+from .test_theme import _declaration_block, _root_tag, _rules_naming, _world_join
 from .tests import AVAILABILITY, PROJECTS, SKILLS
 
 CONTROL_ID = "toggle-effects"
@@ -50,25 +51,6 @@ STILL_CLASS = "no-motion"
 # The mockup's four strings, which F-18 freezes: a world changes the palette,
 # never the words.
 LABELS = ("REMOVE EFFECTS", "RESTORE EFFECTS")
-
-# Any rule whose SELECTOR list mentions the class. `[^{}]*` cannot cross a
-# brace, so a match is always one selector list and never a run of rules --
-# which is what makes counting these a count of rules rather than of mentions.
-STILLNESS_RULE = re.compile(r"[^{}]*\.no-motion[^{}]*\{")
-
-# A selector that joins the stillness class to a WORLD's class, in either
-# order and with any combinator. Built from `ROOT_CLASSES` rather than typed
-# out, for the reason `test_chooser.py` gives about hand-written lists: add a
-# fifth world tomorrow and a typed list silently stops checking it. Arcade is
-# skipped because its class is the empty string -- it IS `:root`, so there is
-# no class to join.
-WORLD_JOIN = re.compile(
-    "|".join(
-        rf"\.{cls}\b[^{{}}]*\.{STILL_CLASS}\b|\.{STILL_CLASS}\b[^{{}}]*\.{cls}\b"
-        for cls in ROOT_CLASSES.values()
-        if cls
-    )
-)
 
 Z_INDEX = re.compile(r"z-index:(\d+)")
 
@@ -172,11 +154,7 @@ class StillnessControlMarkupTests(SimpleTestCase):
         stripping the scripts cannot change it. What is unique to this test
         is the half that could change: the work still being on the page.
         """
-        html = _without_scripts(self._home())
-
-        for project in PROJECTS:
-            with self.subTest(project=project["slug"]):
-                self.assertIn(project["title"], html)
+        _assert_work_survives_without_scripts(self, _without_scripts(self._home()))
 
 
 @patch("ui.views.fetch_availability", return_value=AVAILABILITY)
@@ -287,8 +265,10 @@ class StillnessStylesheetTests(SimpleTestCase):
         """
         css = self._css()
 
-        self.assertEqual(len(STILLNESS_RULE.findall(css)), 2)
-        self.assertIsNone(WORLD_JOIN.search(css), "a world class is joined to the stillness class")
+        self.assertEqual(len(_rules_naming(css, STILL_CLASS)), 2)
+        self.assertIsNone(
+            _world_join(css, STILL_CLASS), "a world class is joined to the stillness class"
+        )
 
     def test_stillness_withdraws_the_overlays_in_every_world(self, *_mocks):
         """AC 1: the scanlines and the vignette go, and they go for all four worlds.
