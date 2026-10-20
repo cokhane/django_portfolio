@@ -799,6 +799,16 @@
   }
   .manor body::before{background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 4px)}
   .manor body::after{background:radial-gradient(ellipse at center,transparent 62%,rgba(0,0,0,.72) 100%)}
+  /* Candlelight on the page's own title -- Manor's half of "candlelight,
+     drifting mist, a glow in the dark", and the half that is NOT in the
+     decoration layer. A slow, shallow guttering (down to .86) rather than
+     the logo's `.flicker`, which is a hard two-frame blink borrowed from a
+     failing tube: a title that blinks reads as broken, a title that gutters
+     reads as lit by a candle. Manor-only by selector, so no other world
+     needs a rule to switch it off, and the stillness class stops it with
+     everything else. */
+  .manor .lantern{animation:lantern 4.2s ease-in-out infinite}
+  @keyframes lantern{0%,100%{opacity:1}42%{opacity:.86}68%{opacity:.95}}
 
   /* ══ FOUND FOOTAGE — dried blood, bone, a tape that will not hold ══
      `--line-hover` is this world's own `--line`: the mockup gives Found
