@@ -477,12 +477,224 @@
   #decor{pointer-events:none}
   #drift{position:fixed; inset:0; z-index:0; overflow:hidden}
   #drift > *{position:absolute; width:calc(var(--decor-size,0) * var(--decor-scale,1))}
-  #drift .crossing{animation-duration:72s}
+  /* The shared clock. US-6.2 moved `infinite` in here beside the duration,
+     and the two belong together: a crossing names only its PATH and its
+     easing, so every property that is the CYCLE's rather than the
+     creature's has exactly one declaration in the sheet. Without it a cast
+     written in longhand would cross once and stop. */
+  #drift .crossing{animation-duration:72s; animation-iteration-count:infinite}
   @media (max-width:560px){
     #drift{--decor-scale:.6}
+    /* US-6.2: the scale-down drops the FILTERS too, not merely the pixels.
+       A drop-shadow and a blur are the expensive part of this layer on a
+       weak GPU -- the movement is cheap by comparison -- so shrinking a
+       creature while it still paints a 26px glow saves the wrong half.
+       Declared once, here: 400px is below 560px, so the narrower screen
+       inherits it and needs no second copy. */
+    #drift *{filter:none}
   }
   @media (max-width:400px){
     #drift{--decor-scale:.5}
+  }
+
+  /* ── HAUNTED MANOR'S CAST (US-6.2) ───────────────────────────────────
+     The cast on US-6.1's stage: ghosts, bats, a witch, a saucer and its
+     passenger, jack-o'-lanterns, and the mist they move through.
+
+     TWO TEMPOS PER CREATURE, and the split IS the design. The SLOW one --
+     the crossing -- is not written here at all; it comes from
+     `#drift .crossing` above, the one place `72s` appears. The FAST one --
+     a wing, a cloak, a candle -- belongs to the creature and is written
+     beside it. Put the wing-beat on the shared clock and the bat flaps
+     once a minute.
+
+     🚨 EVERY CROSSING NAMES `animation-name`, NEVER the `animation`
+     SHORTHAND, and that is load-bearing rather than tidiness. The shorthand
+     resets every sub-property it omits, so `animation:haunt linear infinite`
+     also declares `animation-duration:0s`. Today that loses to
+     `#drift .crossing` on specificity -- (1,1,0) beats (0,1,0) -- so the
+     cast would move and the one-duration contract would merely LOOK
+     honoured. The day a later story writes `#drift .ghost{...}` the two
+     tie, source order decides, and the whole cast silently stops. Longhand
+     means the duration has exactly one declaration in the sheet, which is
+     what that contract actually asks for.
+
+     WORLD GATING IS ONE RULE, not a creature list. Every element carries
+     `manor-cast` and `:root:not(.manor)` withdraws the lot -- Arcade
+     included, whose root class is the empty string, so `:not()` is the only
+     form that reaches it. The gate is on the CAST and not on `#decor`
+     because the container must stay alive in the other worlds: US-6.3's
+     band and US-6.4's storm are rungs of the same ladder.
+
+     REDUCED MOTION IS ALREADY ANSWERED, and not here. US-6.1 settled it --
+     the store reads the preference once and expresses it as the stillness
+     class, which withdraws the whole container. So the mockup's
+     frozen-creature opacities (`.12`, `.22`, `.26`) are deliberately NOT
+     ported: under `display:none` they would style nothing. The resting
+     state is a decision, and the decision is absence. The story's
+     Technical context asks for the mockup's per-creature fades and is
+     superseded here; its Implementation notes record why.
+     ──────────────────────────────────────────────────────────────────── */
+  /* Every creature's artwork fills its box the same way, so the three
+     declarations that say so are written ONCE rather than six times -- the
+     duplication the mockup carries and this story was asked to drop. Only
+     the `filter` below each creature is genuinely its own. Scoped to the
+     stage, which keeps the 0x0 `wisp` defs SVG -- a definition, not a
+     creature, and a sibling of the stage -- out of it. */
+  #drift svg{display:block; width:100%; height:auto}
+  :root:not(.manor) .manor-cast{display:none}
+
+  /* Ghosts. The crossing stutters, vanishes and returns nearer -- that
+     flicker IS the ghost, which is why its envelope is not folded in with
+     the smooth crossings below. `bob` rides on a wrapper div rather than
+     inside the SVG, so the two transforms compose instead of fighting over
+     one `transform` property. */
+  .ghost{color:#9fd8e8; filter:drop-shadow(0 0 22px rgba(159,216,232,.5));
+         animation-name:haunt; animation-timing-function:linear}
+  .ghost .bob{animation:bob 4.6s ease-in-out infinite}
+  @keyframes haunt{
+    0%   {transform:translateX(-14vw) translateY(0)     scale(1);    opacity:0}
+    1.8% {opacity:.34}
+    4.1% {opacity:.05}
+    4.7% {opacity:.42}
+    7.4% {transform:translateX(34vw) translateY(-22px)  scale(1.06); opacity:.12}
+    8.2% {opacity:.46}
+    11.3%{transform:translateX(56vw) translateY(-8px)   scale(.96);  opacity:.40}
+    13.1%{opacity:.04}
+    13.8%{opacity:.38}
+    17.2%{opacity:.22}
+    19.5%{transform:translateX(118vw) translateY(14px)  scale(1.02); opacity:0}
+    100% {transform:translateX(118vw); opacity:0}
+  }
+  @keyframes bob{
+    0%,100%{transform:translateY(0)    rotate(-2deg) skewX(0)}
+    28%    {transform:translateY(-9px) rotate(1deg)  skewX(3deg)}
+    50%    {transform:translateY(-15px)rotate(2deg)  skewX(-2deg)}
+    76%    {transform:translateY(-6px) rotate(-1deg) skewX(2deg)}
+  }
+  /* The one that notices you -- the single judgement call in this story.
+     It is the most effective thing in the Manor set and also the closest to
+     a scare, so it is governed by the SCARES switch rather than by the
+     world. `.scare` is the container US-5.6 built for exactly this, so it
+     costs no new selector, no new rule and no script (that story's
+     contract, line 3). A visitor who turned scares off keeps the whole
+     theatrical world and loses only the lunge. Its delay puts it on screen
+     at t=58s of the cycle, never at load, which is what keeps it clear of
+     the grace period contract line 5 asks for. */
+  .ghost.approach{animation-name:approach; animation-timing-function:ease-in}
+  @keyframes approach{
+    0%   {transform:translate(0,40px)       scale(.22); opacity:0}
+    3.5% {opacity:.18}
+    10.7%{transform:translate(-30px,10px)   scale(.72); opacity:.34}
+    14.0%{opacity:.06}
+    15.2%{opacity:.52}
+    18.3%{transform:translate(-90px,-40px)  scale(2.5); opacity:.42}
+    19.5%{transform:translate(-110px,-60px) scale(3.4); opacity:0}
+    100% {opacity:0}
+  }
+
+  /* Bats. `transform-origin` is load-bearing: the wing group is pinned at
+     the shoulder in the SVG's OWN coordinate space, and without it the
+     wings rotate about the element corner and the bat visibly breaks. */
+  .bat{color:#16121c; animation-name:flit; animation-timing-function:linear}
+  .bat svg{filter:drop-shadow(0 0 7px rgba(0,0,0,.9))}
+  .bat .wing{transform-origin:60px 24px; animation:flap .26s ease-in-out infinite alternate}
+  @keyframes flap{0%{transform:scaleY(1)}100%{transform:scaleY(.26)}}
+  @keyframes flit{
+    0%   {transform:translate(-14vw,10vh) scale(.8);  opacity:0}
+    1.2% {opacity:.9}
+    3.5% {transform:translate(16vw,2vh)   scale(1)}
+    6.6% {transform:translate(34vw,16vh)  scale(.9)}
+    10.1%{transform:translate(54vw,-4vh)  scale(1.1)}
+    13.8%{transform:translate(76vw,12vh)  scale(.95)}
+    18.3%{opacity:.9}
+    19.5%{transform:translate(116vw,-2vh) scale(.85); opacity:0}
+    100% {transform:translate(116vw,-2vh); opacity:0}
+  }
+
+  /* The witch: a long slow arc, her cloak billowing on its own tempo and
+     pinned at her shoulders for the reason the wings are. */
+  .witch{color:#0d0a12; animation-name:fly; animation-timing-function:ease-in-out}
+  .witch svg{filter:drop-shadow(0 0 16px rgba(0,0,0,.95))}
+  .witch .cloak{transform-origin:118px 40px; animation:billow 1.8s ease-in-out infinite alternate}
+  @keyframes billow{0%{transform:rotate(-5deg) scaleX(1)}100%{transform:rotate(5deg) scaleX(1.12)}}
+  @keyframes fly{
+    0%   {transform:translate(-22vw,26vh) rotate(6deg);  opacity:0}
+    2.0% {opacity:.92}
+    7.8% {transform:translate(34vw,4vh)   rotate(-4deg)}
+    12.5%{transform:translate(62vw,14vh)  rotate(3deg)}
+    17.6%{opacity:.92}
+    19.5%{transform:translate(124vw,-4vh) rotate(-6deg); opacity:0}
+    100% {transform:translate(124vw,-4vh); opacity:0}
+  }
+
+  /* The saucer, and the beam it drops while it hovers. The beam is a CHILD
+     of the saucer rather than a sibling, so it travels with it and needs no
+     second copy of the flight path -- it takes the shared clock only to run
+     its own opacity envelope against it. `translateX(-50%)` rather than the
+     mockup's `margin-left:-60px`, because a pixel margin would need scaling
+     at phone width and a percentage transform never does. */
+  .ufo{animation-name:cruise; animation-timing-function:ease-in-out}
+  .ufo svg{filter:drop-shadow(0 0 26px rgba(159,216,232,.55))}
+  .beam{position:absolute; left:50%; top:54px; height:64vh;
+        width:calc(120px * var(--decor-scale,1));
+        transform:translateX(-50%);
+        clip-path:polygon(38% 0,62% 0,100% 100%,0 100%);
+        background:linear-gradient(180deg,rgba(159,216,232,.42),rgba(159,216,232,.06) 62%,transparent);
+        animation-name:beam; animation-timing-function:ease-in-out}
+  @keyframes cruise{
+    0%   {transform:translateX(-24vw) translateY(0);     opacity:0}
+    1.6% {opacity:1}
+    9.0% {transform:translateX(46vw)  translateY(26px)}
+    10.5%{transform:translateX(54vw)  translateY(26px)}
+    17.9%{opacity:1}
+    19.5%{transform:translateX(124vw) translateY(-10px); opacity:0}
+    100% {transform:translateX(124vw); opacity:0}
+  }
+  @keyframes beam{0%,8.2%{opacity:0} 9.4%,10.9%{opacity:1} 12.1%,100%{opacity:0}}
+
+  /* A passenger, drifting on its own. */
+  .alien{animation-name:hover-drift; animation-timing-function:ease-in-out}
+  .alien svg{filter:drop-shadow(0 0 14px rgba(127,168,119,.6))}
+  @keyframes hover-drift{
+    0%   {transform:translate(-10vw,0)    rotate(-3deg); opacity:0}
+    2.7% {opacity:.9}
+    9.8% {transform:translate(48vw,-34px) rotate(3deg)}
+    16.8%{opacity:.85}
+    19.5%{transform:translate(112vw,12px) rotate(-3deg); opacity:0}
+    100% {transform:translate(112vw,12px); opacity:0}
+  }
+
+  /* Jack-o'-lanterns: the one part of the cast that does NOT cross. They
+     sit along the bottom for the whole cycle, which is what keeps the stage
+     from reading as empty during the ~10s the crossings leave bare. Their
+     candles gutter on their own tempo. ONE `bottom`, scaled by the same
+     token the widths use, rather than the mockup's three values 4px apart
+     -- that spread was per-creature data carrying no meaning a reader could
+     recover. */
+  .pumpkin{bottom:calc(54px * var(--decor-scale,1))}
+  .pumpkin svg{filter:drop-shadow(0 6px 18px rgba(0,0,0,.9))}
+  .pumpkin .glow{animation:gutter 2.6s ease-in-out infinite}
+  @keyframes gutter{
+    0%,100%{opacity:1}   17%{opacity:.52}  24%{opacity:.95}
+    48%    {opacity:.66} 61%{opacity:1}    79%{opacity:.6}
+  }
+
+  /* Mist is a RUNG, not a creature, and that is why it is a sibling of the
+     stage rather than something inside it: `#drift` is a stacking context
+     at `z-index:0`, so nothing within it can ever paint above the work at
+     `1`. Mist is meant to drift in FRONT of the page -- the difference
+     between a haunted room and a merely dark one -- so it takes its own
+     fixed rung on the ladder. Its 19s tempo is its own, deliberately not a
+     factor of 72, so the two never visibly lock. */
+  #mist{position:fixed; inset:0; z-index:26; opacity:.5;
+        background:
+          radial-gradient(ellipse 45% 30% at 20% 75%, rgba(159,216,232,.14), transparent 65%),
+          radial-gradient(ellipse 40% 26% at 78% 68%, rgba(200,190,220,.11), transparent 65%);
+        animation:waft 19s ease-in-out infinite alternate}
+  @keyframes waft{
+    0%  {transform:translateX(-26px) translateY(0)}
+    100%{transform:translateX(26px)  translateY(-14px)}
   }
 
   /* ── STILLNESS (US-5.5) ──────────────────────────────────────────────
@@ -587,6 +799,16 @@
   }
   .manor body::before{background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 4px)}
   .manor body::after{background:radial-gradient(ellipse at center,transparent 62%,rgba(0,0,0,.72) 100%)}
+  /* Candlelight on the page's own title -- Manor's half of "candlelight,
+     drifting mist, a glow in the dark", and the half that is NOT in the
+     decoration layer. A slow, shallow guttering (down to .86) rather than
+     the logo's `.flicker`, which is a hard two-frame blink borrowed from a
+     failing tube: a title that blinks reads as broken, a title that gutters
+     reads as lit by a candle. Manor-only by selector, so no other world
+     needs a rule to switch it off, and the stillness class stops it with
+     everything else. */
+  .manor .lantern{animation:lantern 4.2s ease-in-out infinite}
+  @keyframes lantern{0%,100%{opacity:1}42%{opacity:.86}68%{opacity:.95}}
 
   /* ══ FOUND FOOTAGE — dried blood, bone, a tape that will not hold ══
      `--line-hover` is this world's own `--line`: the mockup gives Found
@@ -701,7 +923,69 @@
   page change can duplicate or disturb it (F12).
 {% endcomment %}
 <div id="decor" aria-hidden="true" hidden>
-  <div id="drift"></div>
+  {% comment %}
+    The wisp blur the ghosts reference. `position:absolute` on a 0x0 SVG is
+    the standard idiom and it is load-bearing: left in flow, an inline SVG
+    opens a line box and drops blank pixels at the foot of every page.
+    Outside `#drift`, because it is a DEFINITION and not a cast member --
+    the gate below is written over that element's children.
+  {% endcomment %}
+  <svg width="0" height="0" style="position:absolute"><defs><filter id="wisp" x="-40%" y="-20%" width="180%" height="160%"><feGaussianBlur stdDeviation="1.6"/></filter></defs></svg>
+
+  {% comment %}
+    ── HAUNTED MANOR'S CAST (US-6.2) ─────────────────────────────────────
+    Eleven elements, and every one of them is DATA against rules written
+    once in the stylesheet: `--decor-size` is its width, `animation-delay`
+    its place in the 72-second cycle, `crossing` its subscription to that
+    cycle's clock, and `manor-cast` its world.
+
+    🚨 NOT ONE of them carries `animation-duration`. The mockup repeats
+    `72s` inline on all nine of its crossings; here the duration lives in
+    `#drift .crossing` alone, because a crossing's visible window is a
+    keyframe PERCENTAGE of it -- 19.5%, which is 14.04s only while the
+    duration is 72s -- so a second copy is a second chance for one
+    creature's window to stop meaning fourteen seconds.
+
+    THE DELAYS ARE A GRID, 7s apart, and they are allocated ACROSS worlds:
+    Manor holds 0/14/21/28/35/42/49 and leaves 56 and 63 to US-6.3's
+    Found Footage band. Measured over a full cycle against the real opacity
+    envelopes: two on screen 33.9s, one 28.4s, none 9.7s, three NEVER. The
+    bare stretch is covered by the lanterns and the mist, which do not
+    cross and so are always there.
+  {% endcomment %}
+  <div id="drift">
+    {% comment %}Ghosts. The second is the one that notices you.{% endcomment %}
+    <div class="ghost manor-cast crossing" style="--decor-size:92px; top:48%; animation-delay:0s">
+      <div class="bob">{% include "ui/decor/_ghost.html" with glints=True %}</div>
+    </div>
+    <div class="ghost approach manor-cast crossing scare" style="--decor-size:150px; top:40%; left:30%; animation-delay:-14s">
+      <div class="bob">{% include "ui/decor/_ghost.html" %}</div>
+    </div>
+
+    {% comment %}Bats, two sizes, wings beating on their own 0.26s tempo.{% endcomment %}
+    <div class="bat manor-cast crossing" style="--decor-size:52px; top:12%; animation-delay:-21s">{% include "ui/decor/_bat.html" %}</div>
+    <div class="bat manor-cast crossing" style="--decor-size:34px; top:30%; animation-delay:-28s">{% include "ui/decor/_bat.html" %}</div>
+
+    {% comment %}A passenger, then the witch, then the saucer that dropped it.{% endcomment %}
+    <div class="alien manor-cast crossing" style="--decor-size:46px; top:26%; animation-delay:-35s">{% include "ui/decor/_alien.html" %}</div>
+    <div class="witch manor-cast crossing" style="--decor-size:190px; top:9%; animation-delay:-42s">{% include "ui/decor/_witch.html" %}</div>
+    <div class="ufo manor-cast crossing" style="--decor-size:190px; top:7%; animation-delay:-49s">{% include "ui/decor/_ufo.html" %}<div class="beam crossing" style="animation-delay:-49s"></div></div>
+
+    {% comment %}
+      Jack-o'-lanterns along the bottom. No `crossing` class: they do not
+      cross, they sit, and their candles gutter where they sit.
+    {% endcomment %}
+    <div class="pumpkin manor-cast" style="--decor-size:104px; left:4%">{% include "ui/decor/_pumpkin.html" %}</div>
+    <div class="pumpkin manor-cast" style="--decor-size:72px; left:27%">{% include "ui/decor/_pumpkin.html" %}</div>
+    <div class="pumpkin manor-cast" style="--decor-size:118px; right:9%">{% include "ui/decor/_pumpkin.html" %}</div>
+    <div class="pumpkin manor-cast" style="--decor-size:62px; right:31%">{% include "ui/decor/_pumpkin.html" %}</div>
+  </div>
+
+  {% comment %}
+    Mist takes its own rung, outside `#drift`, because `#drift` is a
+    stacking context at `z-index:0` and mist belongs in FRONT of the work.
+  {% endcomment %}
+  <div id="mist" class="manor-cast"></div>
 </div>
 
 {% comment %}
