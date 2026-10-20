@@ -7,24 +7,32 @@ A separate module for the reason `test_theme.py`, `test_hire_me_panel.py`,
 written before that split; the split is the newer decision and the one the
 repo follows.
 
-**This story ships the stage, not the cast.** No creature is in scope, so
-nothing here asserts that anything moves. What a render genuinely carries is
-the structure 6.2 to 6.5 inherit, and that is what is pinned:
+**Two stories live here, in that order.** US-6.1 built the STAGE and the
+classes below pin it first; US-6.2 put Haunted Manor's CAST on it, and
+`ManorCastMarkupTests` and `ManorCastStylesheetTests` pin that. The stage
+tests were deliberately written against an empty layer -- the fence before
+the thing it fences -- which is why several of them read as near-trivial and
+are not: the cast was built inside boundaries that were already enforced.
 
-1. **The container cannot take a click or a focus** (**NFR-8**, **F-14**) --
-   the fence, asserted while the layer is empty precisely so the first
-   creature is built inside it.
+What the stage pins:
+
+1. **The container cannot take a click or a focus** (**NFR-8**, **F-14**).
 2. **The container is NOT a stacking context**, which is the one property the
    whole ladder rests on and the one nothing on screen would show.
 3. **The cycle is written once** -- one duration, in one rule (**AC 11**).
 4. **Both switches withdraw the layer whole**, and the world defined by
    absence never renders it (**S11**).
 
-What a Django render cannot carry is anything about motion: it renders
-templates, it does not run them. **AC 4** -- never more than two of nine on
-screen across a full 72-second cycle -- was measured against the mockup's own
-nine delays and envelopes, and the counts are recorded in the story's
-Implementation notes. The same is true of **AC 10**'s visual half at 320px.
+What the cast adds: its count and its slots on that cycle, the world gate it
+wears, the two tempos per creature and the pins they rotate about, and the
+single shared body behind the two ghosts.
+
+**What a Django render cannot carry is anything about motion**: it renders
+templates, it does not run them. So the things that only a browser can show
+were measured in one -- that every crossing resolves to 72000ms while a wing
+beats at 260ms, that no creature intercepts a tap, and that nothing overflows
+at 320px. Those numbers are recorded in US-6.2's Implementation notes, with
+the occupancy counts behind **AC 2**.
 """
 
 import re
@@ -33,7 +41,7 @@ from unittest.mock import patch
 from django.test import SimpleTestCase
 from django.urls import reverse
 
-from .context_processors import CLEAN, THEME_PARAM
+from .context_processors import CLEAN, MANOR, THEME_PARAM
 from .test_chooser import CHOOSER_MARKER, _css, _open_tag
 from .test_effects import LAYER_ID, STILL_CLASS, Z_INDEX, _z
 from .test_preferences import (
@@ -79,6 +87,68 @@ REVEAL = f"{LAYER_ID}.hidden = false"
 DIV = re.compile(r"<div\b|</div>")
 
 
+# US-6.2's cast, and how many of each the stage carries. Written out because
+# the number IS the decision: the mockup's nine delay slots are split across
+# worlds, and Manor's seven crossings are the seven this names. A creature
+# added without a slot would pass a count-free test and break the stagger.
+CAST = {"ghost": 2, "bat": 2, "witch": 1, "ufo": 1, "alien": 1, "pumpkin": 4}
+
+# The class every Manor element carries, and the one rule that withdraws
+# them. One class rather than a selector list, so a creature added later is
+# gated by wearing it rather than by somebody remembering a rule.
+MANOR_CAST = "manor-cast"
+
+# US-5.6 built this as the ONE container every scare element lives in, and
+# `.no-scares .scare{display:none}` already withdraws it. The approaching
+# ghost joins that container rather than getting a rule of its own, so this
+# story adds no selector to US-5.6's block -- its contract, line 3. The
+# count of those rules stays test_scares.py's to assert.
+SCARE_HOOK = "scare"
+WORLD_GATE = f":root:not(.{MANOR}) .{MANOR_CAST}"
+
+# The slow clock's subscribers, and Manor's delays on it -- seven creatures
+# plus the beam, which rides the saucer's slot to run its own envelope.
+# 7s apart, leaving 56 and 63 for US-6.3's Found Footage band.
+CROSSING = "crossing"
+DELAYS = ("0s", "-14s", "-21s", "-28s", "-35s", "-42s", "-49s", "-49s")
+
+# The articulated parts and the pin each rotates about, in the SVG's own
+# coordinate space. Ported without these, wings and cloak rotate about the
+# element corner and the creature visibly breaks.
+PINS = {".bat .wing": "transform-origin:60px 24px", ".witch .cloak": "transform-origin:118px 40px"}
+
+# A creature's own fast tempo. None of these may be the shared 72s: the
+# mockup beats a wing at .26s and bills a cloak at 1.8s, and putting either
+# on the slow clock produces a bat that flaps once a minute.
+TEMPOS = ("animation:flap .26s", "animation:billow 1.8s", "animation:gutter 2.6s",
+          "animation:bob 4.6s", "animation:waft 19s")
+
+# The rung mist takes, and the one it must not: `#drift` is a stacking
+# context at z-index 0, so mist inside it could never paint above the work.
+MIST_ID = "mist"
+
+# The classes a cast element wears that say WHAT IT DOES rather than what it
+# IS -- its world, its subscription to the clock, its scare binding, its bob
+# wrapper. Subtracted from an element's class list, what remains is the
+# creature's own name, which is how the crossing selectors below are DERIVED
+# from the markup instead of being a third hand-kept copy of the cast.
+STRUCTURAL = frozenset({CROSSING, MANOR_CAST, SCARE_HOOK, "bob"})
+
+# A rule that styles a creature ITSELF rather than a part inside it: all
+# classes, no descendant. `.ghost` and `.ghost.approach` qualify; `.bat .wing`
+# and `.bat svg` are parts, and parts legitimately own a fast tempo written
+# with the `animation` shorthand. The name is matched with a WORD BOUNDARY:
+# a plain substring test lets a rule renamed `.beamX` satisfy a search for
+# `.beam`, so a creature whose rule was renamed away still reads as covered.
+OWN_RULE = re.compile(r"^\.[\w.-]+$")
+
+ANY_KEYFRAME = re.compile(r"@keyframes\s+([a-z-]+)")
+
+# The highlight in a ghost's eye -- present on the drifting one, absent on
+# the one that notices you, and the ONLY way the two differ.
+GLINT = re.compile(r'<ellipse cx="\d+" cy="36"[^>]*opacity="\.55"/>')
+
+
 def _element(html, element_id):
     """The markup of `#element_id`, from its own `<div` to its matching close.
 
@@ -96,6 +166,65 @@ def _element(html, element_id):
         if depth == 0:
             return html[start:tag.end()]
     raise AssertionError(f"#{element_id} is never closed")
+
+
+def _media_block(css, query):
+    """The declarations inside `@media <query>{...}`, matched by brace depth.
+
+    A slice running from the query to the END of the stylesheet is not the
+    same thing, and the difference is a test that cannot fail. A rule moved
+    OUT of the media query but written after it still falls inside such a
+    slice -- so "filters are dropped at phone width" would read exactly the
+    same as "filters are dropped at every width", which is a different and
+    much worse change.
+    """
+    opening = f"@media {query}{{"
+    start = css.rindex(opening) + len(opening)
+    depth = 1
+    for index in range(start, len(css)):
+        depth += {"{": 1, "}": -1}.get(css[index], 0)
+        if depth == 0:
+            return css[start:index]
+    raise AssertionError(f"@media {query} is never closed")
+
+
+def _crossing_names(layer):
+    """Every creature class worn by something that takes the shared clock.
+
+    DERIVED from the rendered layer rather than listed, and the difference is
+    the whole value: US-6.3 adds a Found Footage cast to this same stage, and
+    a hand-kept tuple would leave each of its crossings unguarded by the test
+    that claims to guard the cycle -- silently, and in a story that cannot
+    fail yet. Anything wearing `crossing` is covered the day it is written.
+
+    Scanned over the whole layer, not just the stage's direct children: the
+    saucer's beam is a GRANDCHILD, and it takes the clock too.
+    """
+    names = set()
+    for classes in re.findall(r'class="([^"]*\bcrossing\b[^"]*)"', layer):
+        names |= set(classes.split()) - STRUCTURAL
+    return names
+
+
+def _stage_children(stage):
+    """The `class` of every DIRECT child of `stage`, grandchildren excluded.
+
+    A flat regex over the same markup also finds the ghosts' `.bob` wrappers
+    and the saucer's beam, so a count taken that way reports fourteen
+    elements on an eleven-creature stage -- and, worse, a missing class on a
+    grandchild that was never required to carry one would read as a failure.
+    Depth is the only honest way to ask what is ON the stage.
+    """
+    classes, depth = [], 0
+    for tag in re.finditer(r"<div\b[^>]*>|</div>", stage):
+        if tag.group().startswith("</"):
+            depth -= 1
+            continue
+        if depth == 1:
+            found = re.search(r'class="([^"]+)"', tag.group())
+            classes.append(found.group(1) if found else "")
+        depth += 1
+    return classes
 
 
 @patch("ui.views.fetch_availability", return_value=AVAILABILITY)
@@ -136,22 +265,29 @@ class DecorLayerMarkupTests(SimpleTestCase):
     def test_nothing_in_the_layer_can_take_a_click_or_a_focus(self, *_mocks):
         """AC 2 (**NFR-8**): the fence, built while there is nothing behind it.
 
-        Trivially true today -- the stage is empty. That is the point. The
-        assertion exists so that the first creature 6.2 writes is built inside
-        a boundary that is already enforced, rather than against one somebody
-        has to remember. A decorative shape that swallows a tap is a dead
-        patch over work a visitor is reaching for, and on a phone it is a tap
-        that simply does nothing.
+        Written by US-6.1 against an EMPTY stage, which was the point: the
+        fence goes up before the thing it fences, so the first creature is
+        built inside a boundary already enforced rather than against one
+        somebody has to remember. A decorative shape that swallows a tap is a
+        dead patch over work a visitor is reaching for, and on a phone it is
+        a tap that simply does nothing.
 
         `pointer-events` is asserted absent from the markup as well as set on
         the container in CSS: the container's rule cannot protect the page
         from a child that re-enables pointers on itself.
-        """
-        layer = _element(self._page(), LAYER_ID)
 
-        for focusable in ("<a", "<button", "tabindex", "pointer-events"):
-            with self.subTest(focusable=focusable):
-                self.assertNotIn(focusable, layer)
+        US-6.2 then populated it, and this is where that is cashed in:
+        eleven elements and ~7.4KB of markup later, the layer
+        still announces nothing and still swallows no tap. `role=` joined
+        the list then, because an SVG given one would be announced even
+        under `aria-hidden`. Run over all three pages for the reason the
+        test above records.
+        """
+        for name, html in _render_every_page(self.client).items():
+            layer = _element(html, LAYER_ID)
+            for focusable in ("<a", "<button", "tabindex", "pointer-events", "role="):
+                with self.subTest(page=name, focusable=focusable):
+                    self.assertNotIn(focusable, layer)
 
     def test_the_work_is_wrapped_and_the_layer_sits_outside_the_wrapper(self, *_mocks):
         """AC 5 and flag **F12**: what lifts the content, and what it does not contain.
@@ -332,8 +468,11 @@ class DecorStylesheetTests(SimpleTestCase):
         same job, and a creature that arrives later is scaled without anyone
         editing a media block.
 
-        `rindex` because the chooser owns a `560px` block of its own, earlier
-        in the stylesheet; the layer's is the last. Size is read as
+        Read through `_media_block`, which matches braces. This test used to
+        slice from the last `560px` query to the END of the sheet, which
+        cannot fail: a scale rule moved OUT of the query would still fall
+        inside the slice. The chooser owns an earlier `560px` block of its
+        own, which is why the helper takes the last. Size is read as
         `var(--decor-scale,1)` and the token is declared nowhere else, so the
         fallback IS the full-size default and there is no second copy to
         drift from this one.
@@ -342,7 +481,7 @@ class DecorStylesheetTests(SimpleTestCase):
 
         for width, scale in SCALES:
             with self.subTest(width=width):
-                block = css[css.rindex(f"@media (max-width:{width})"):]
+                block = _media_block(css, f"(max-width:{width})")
                 self.assertIn(scale, _declaration_block(block, f"#{STAGE_ID}"))
         self.assertIn("var(--decor-scale,1)", _declaration_block(css, f"#{STAGE_ID} > *"))
 
@@ -422,3 +561,373 @@ class DecorStylesheetTests(SimpleTestCase):
         for absent in (f'id="{LAYER_ID}"', f'id="{WRAPPER_ID}"', "<style"):
             with self.subTest(absent=absent):
                 self.assertNotIn(absent, partial)
+
+
+@patch("ui.views.fetch_availability", return_value=AVAILABILITY)
+@patch("ui.views.fetch_skills", return_value=SKILLS)
+@patch("ui.views.fetch_projects", return_value=PROJECTS)
+class ManorCastMarkupTests(SimpleTestCase):
+    """The cast US-6.2 puts on US-6.1's stage, as the server sends it."""
+
+    def _layer(self, query=None):
+        """The decoration layer's markup, from `<div id="decor"` to its close."""
+        page = self.client.get(reverse("ui:home"), query or {}).content.decode()
+        return _element(page, LAYER_ID)
+
+    def test_the_whole_cast_is_on_the_stage(self, *_mocks):
+        """AC 1: eleven elements, and the COUNT of each is the assertion.
+
+        Counting rather than merely finding one of each is what makes this a
+        test of the decision instead of a test of the markup's existence.
+        The cast size was a question the story asked out loud -- nine is the
+        plan's number, a smaller cut was explicitly allowed -- and the answer
+        is bound to the stagger: Manor holds seven of the mockup's nine delay
+        slots and leaves two for US-6.3. A creature added without a slot
+        reads as clutter and a creature dropped leaves the stage bare, and
+        neither shows up in a test that only asks "is there a bat".
+        """
+        layer = self._layer()
+
+        for creature, expected in CAST.items():
+            with self.subTest(creature=creature):
+                self.assertEqual(len(re.findall(rf'class="{creature}\b', layer)), expected)
+
+    def test_no_creature_carries_its_own_crossing_timer(self, *_mocks):
+        """AC 1: the duration lives in the stylesheet, once, for all of them.
+
+        The mockup repeats `animation-duration:72s` inline on all nine of its
+        crossings, and that is the duplication this story was asked to drop.
+        It is not cosmetic: a crossing's visible window is a keyframe
+        PERCENTAGE of the duration -- 19.5%, which is 14.04s only while the
+        duration is 72s -- so every inline copy is another chance for one
+        creature's window to quietly stop meaning fourteen seconds.
+
+        Asserted over the MARKUP, because `test_the_cycle_is_written_once`
+        already pins the stylesheet half. Between them the number has exactly
+        one home. The delay is the opposite case and stays inline: eight
+        different values cannot be one rule.
+        """
+        layer = self._layer()
+
+        self.assertNotIn("animation-duration", layer)
+        self.assertNotIn(DURATION, layer)
+
+    def test_every_crossing_takes_a_slot_on_the_shared_clock(self, *_mocks):
+        """AC 1 and AC 2: who subscribes to the cycle, and where each sits on it.
+
+        The delays ARE the stagger, so they are asserted as the exact
+        multiset rather than as "some delays exist". 7s apart with a 14.04s
+        window is what holds the stage to two at a time; re-spacing them is
+        the change that would quietly make it three, and three reads as
+        clutter rather than as a haunting.
+
+        Eight, not seven: the beam rides the saucer's own slot so that it
+        fires while the saucer hovers rather than on a clock of its own.
+
+        The pumpkins are deliberately absent from this list. They do not
+        cross -- they sit along the bottom for the whole cycle, which is what
+        keeps the stage from reading as empty during the ~9.7s the crossings
+        leave bare.
+        """
+        layer = self._layer()
+
+        self.assertEqual(sorted(re.findall(r'animation-delay:(-?\d+s)', layer)), sorted(DELAYS))
+        self.assertEqual(len(re.findall(rf'class="[^"]*\b{CROSSING}\b', layer)), len(DELAYS))
+
+    def test_every_element_on_the_stage_wears_the_world_it_belongs_to(self, *_mocks):
+        """AC 4: the gate is a class each creature wears, not a list it is on.
+
+        This is the half a selector cannot protect. One rule withdraws
+        everything wearing `manor-cast`, so a creature that forgets the class
+        is not gated at all -- it would drift through Found Footage and
+        through Just the Work, which is the world defined by absence. The
+        rule would still be there, still correct, still passing its own test.
+
+        So every direct child of the stage is checked, derived from the
+        markup rather than from a list: adding a creature without the class
+        fails here on the next run.
+        """
+        stage = _element(self._layer(), STAGE_ID)
+
+        children = _stage_children(stage)
+        self.assertEqual(len(children), sum(CAST.values()))
+        for classes in children:
+            with self.subTest(element=classes):
+                self.assertIn(MANOR_CAST, classes)
+
+    def test_the_mist_takes_its_own_rung_outside_the_stage(self, *_mocks):
+        """AC 1: why mist is a sibling of the stage and not a creature on it.
+
+        `#drift` is `position:fixed` with `z-index:0`, so it forms a stacking
+        context, and nothing inside it can ever paint above the work at
+        `z-index:1`. Mist that drifts BEHIND the portfolio is just a dark
+        background; mist in front of it is the difference between a haunted
+        room and an unlit one. It therefore takes its own fixed rung on
+        US-6.1's ladder, as a child of the container.
+
+        Pinned as containment rather than as a number, the way the rest of
+        the ladder is: the rung may be retuned, but moving mist inside the
+        stage silently cancels it.
+        """
+        layer = self._layer()
+
+        self.assertIn(f'id="{MIST_ID}"', layer)
+        self.assertNotIn(f'id="{MIST_ID}"', _element(layer, STAGE_ID))
+
+    def test_the_one_that_notices_you_is_governed_by_the_scares_switch(self, *_mocks):
+        """The story's Q1, decided: it is a scare, not decoration.
+
+        The approaching ghost is the strongest thing in the Manor set and
+        also the closest to a startle, and "theatrical, not frightening"
+        (**S11**) cuts both ways on it. Binding it to the scares switch is
+        what lets both readings hold: a visitor who leaves scares on gets the
+        beat, and one who turned them off keeps the entire theatrical world
+        and loses only the lunge.
+
+        It costs NOTHING to do it this way, which is most of the argument.
+        US-5.6 built `.scare` as the one container every scare element lives
+        inside, so this is ONE CLASS on one element -- no new rule, no new
+        selector in that story's block (its contract, line 3), and no script.
+        That is the whole assertion here, deliberately: the count of rules
+        naming the scares class stays `test_scares.py`'s to make, and the
+        cheap way to get this wrong -- a well-meant `.no-scares .ghost` --
+        fails there, where that invariant lives.
+        """
+        page = self.client.get(reverse("ui:home")).content.decode()
+        approach = re.search(r'class="ghost approach[^"]*"', _element(page, LAYER_ID)).group()
+
+        self.assertIn(SCARE_HOOK, approach)
+
+    def test_the_two_ghosts_are_one_body_and_one_difference(self, *_mocks):
+        """AC 10: one definition, with the single genuine difference as a flag.
+
+        The mockup draws its two ghosts as two separate SVGs, and they are
+        NOT identical: the drifting one carries a highlight in each eye and
+        the one that notices you has two black voids instead. That absence is
+        most of why the second reads as a scare, so it cannot be normalised
+        away -- but it is also the ONLY difference in ninety-odd characters
+        of otherwise identical path data.
+
+        So the assertion is subtraction, not counting. Strip the highlights
+        from the drifting ghost and what is left must be the approaching
+        ghost, byte for byte. Counting the highlights instead -- two here,
+        none there -- was the first version of this test, and it passed just
+        as happily against two separately-maintained copies of the body,
+        which is the exact duplication AC 10 forbids and the exact way a path
+        fix gets applied to one ghost and not the other.
+        """
+        layer = self._layer()
+        ghosts = re.findall(r'<div class="ghost\b.*?\n\s*</div>', layer, re.S)
+        drifting, approach = (re.search(r"<svg.*?</svg>", ghost, re.S).group() for ghost in ghosts)
+
+        self.assertEqual(len(GLINT.findall(drifting)), 2)
+        self.assertEqual(GLINT.sub("", drifting), approach)
+
+    def test_the_cast_ships_in_every_world_and_is_withdrawn_by_the_stylesheet(self, *_mocks):
+        """AC 4 and **F-18**: the server never knows the world.
+
+        The world is a class the store puts on `<html>` in the browser, and
+        the chooser swaps it live with no page load. So withdrawal has to be
+        a stylesheet's job -- and the proof that it is, is that a render
+        pinned to Just the Work still carries every creature in its bytes.
+        """
+        pinned = self._layer({THEME_PARAM: CLEAN})
+
+        for creature in CAST:
+            with self.subTest(creature=creature):
+                self.assertIn(f'class="{creature}', pinned)
+
+
+@patch("ui.views.fetch_availability", return_value=AVAILABILITY)
+@patch("ui.views.fetch_skills", return_value=SKILLS)
+@patch("ui.views.fetch_projects", return_value=PROJECTS)
+class ManorCastStylesheetTests(SimpleTestCase):
+    """Two tempos per creature, one gate, and no duplicated definition."""
+
+    def _sheet(self):
+        """The stylesheet, comments stripped."""
+        return _css(self.client.get(reverse("ui:home")).content.decode())
+
+    def test_one_rule_withdraws_the_cast_from_every_other_world(self, *_mocks):
+        """AC 4: gated on the CAST, deliberately not on the container.
+
+        `.clean #decor{display:none}` already exists and would have been the
+        obvious thing to copy for the other two worlds -- and it would have
+        been wrong. The container is shared: US-6.3's band and US-6.4's storm
+        are rungs of the same ladder, in worlds that are not Manor. Hiding
+        `#decor` to hide Manor's bats would have taken Found Footage's own
+        cast down with it, in a story that cannot fail yet.
+
+        `:not()` rather than three world selectors because Arcade's root
+        class is the EMPTY STRING -- it IS `:root` -- so there is no class to
+        name and a three-world list would leave Manor's ghosts drifting
+        through the arcade.
+        """
+        self.assertIn("display:none", _declaration_block(self._sheet(), WORLD_GATE))
+
+    def test_each_creature_keeps_its_fast_tempo_off_the_slow_clock(self, *_mocks):
+        """AC 3: the two tempos, and the one that must not be shared.
+
+        This is the mistake the story warns about in its own voice. The slow
+        tempo is the crossing and belongs to the shared 72s cycle; the fast
+        one is a wing, a cloak, a candle, a bob, a drift of mist, and belongs
+        to the creature. Put a wing-beat on the shared clock and the bat
+        flaps once a minute -- which is not a subtle failure, but it is one
+        that only appears after watching for a full minute.
+
+        Each fast tempo is asserted with its NUMBER, so a well-meaning tidy
+        that folds them into one shared duration fails here.
+        """
+        css = self._sheet()
+
+        for tempo in TEMPOS:
+            with self.subTest(tempo=tempo):
+                self.assertIn(tempo, css)
+
+    def test_no_crossing_reaches_for_the_animation_shorthand(self, *_mocks):
+        """AC 1: the one way to break the cycle that leaves no trace.
+
+        `animation` is a SHORTHAND, so `animation:haunt linear infinite`
+        also declares `animation-duration:0s`. Today that loses to
+        `#drift .crossing` on specificity -- (1,1,0) beats (0,1,0) -- so the
+        cast would still move and the one-duration contract would merely
+        LOOK honoured. The day a later story writes `#drift .ghost{...}` the
+        two tie, source order decides, and the whole cast silently stops.
+
+        Nothing else in this module catches that. The shorthand carries no
+        `72s` and no `animation-delay`, so `test_the_cycle_is_written_once`
+        stays green, the markup is untouched, and the page renders a layer
+        of motionless creatures parked at their first keyframe. The comment
+        in `base.html` calls this load-bearing; this is what makes that
+        claim testable rather than merely stated.
+
+        The creatures are DERIVED from the markup, not listed: whatever wears
+        `crossing` is checked, so US-6.3's cast inherits this guard without
+        anybody remembering to extend a tuple. Only a creature's OWN rule is
+        read -- `.bat .wing` beats at .26s with the shorthand, legitimately,
+        because a part is not on the shared clock.
+        """
+        page = self.client.get(reverse("ui:home")).content.decode()
+        css = _css(page)
+        names = _crossing_names(_element(page, LAYER_ID))
+
+        self.assertTrue(names, "no crossing found -- the layer or the regex has drifted")
+        for name in sorted(names):
+            own = [block for selector, block in CSS_RULE.findall(css)
+                   if OWN_RULE.match(selector.strip())
+                   and re.search(rf"\.{re.escape(name)}\b", selector)]
+            with self.subTest(creature=name):
+                self.assertTrue(own, f".{name} takes the clock but has no rule of its own")
+                self.assertIn("animation-name:", "".join(own))
+                self.assertNotIn("animation:", "".join(own))
+
+    def test_the_articulated_parts_rotate_about_their_own_pin(self, *_mocks):
+        """AC 3: `transform-origin`, which is load-bearing and silent.
+
+        The mockup pins the bat's wing at the shoulder and the witch's cloak
+        at her shoulders, in the SVG's own coordinate space. Ported without
+        them the parts still animate -- CSS defaults the origin to the
+        element's own box -- so nothing errors, nothing logs, and the wings
+        rotate about the corner of the bat. It looks like a bug in the
+        artwork rather than a missing declaration, which is exactly why it
+        is pinned here by value.
+        """
+        css = self._sheet()
+
+        for selector, pin in PINS.items():
+            with self.subTest(selector=selector):
+                self.assertIn(pin, _declaration_block(css, selector))
+
+    def test_no_keyframe_is_defined_twice(self, *_mocks):
+        """AC 10: the duplication rule, asked of the whole sheet at once.
+
+        Derived rather than listed. A hand-written list of the names this
+        story happens to add can only check itself -- US-6.3 adds its own
+        cast next, and the cheapest way to build it is to copy a crossing
+        and rename half of it. This fails on the copy, whoever writes it.
+
+        The crossings themselves are NOT duplicates and are not treated as
+        any: `haunt` stutters and vanishes, `flit` darts, `fly` arcs,
+        `cruise` pauses to hover. Merging them into one shared envelope would
+        flatten the ghost's stutter, which is its character. AC 10 forbids a
+        definition written twice, not two definitions that differ.
+        """
+        names = ANY_KEYFRAME.findall(self._sheet())
+
+        self.assertEqual(sorted(names), sorted(set(names)))
+
+    def test_the_artwork_is_sized_by_one_rule_rather_than_six(self, *_mocks):
+        """AC 10: the three declarations every creature's SVG shares.
+
+        The mockup writes `display:block; width:100%; height:auto` once per
+        creature, six times over, and the only thing that genuinely differs
+        between those rules is the filter. One rule on the stage carries the
+        shared half.
+
+        Scoped to `#drift`, which keeps the 0x0 `wisp` defs SVG out of it --
+        that one is a definition rather than a creature, and it is a sibling
+        of the stage precisely so that geometry meant for artwork never
+        reaches it.
+
+        Asserted in BOTH directions, the second DERIVED: every rule in the
+        sheet that sizes an SVG is collected, and the shared one must be the
+        only one there. A per-creature list would have had to be kept in
+        step with the cast; this fails on a seventh creature nobody told it
+        about. A count
+        of `height:auto` across the whole sheet was the first version and
+        was both brittle -- any unrelated future use fails it -- and partly
+        vacuous, since it passed whether or not the declaration was in the
+        rule this test is named after.
+        """
+        css = self._sheet()
+        shared = _declaration_block(css, f"#{STAGE_ID} svg")
+
+        for declaration in ("display:block", "width:100%", "height:auto"):
+            with self.subTest(declaration=declaration):
+                self.assertIn(declaration, shared)
+        sized = [selector.strip() for selector, block in CSS_RULE.findall(css)
+                 if "width:100%" in block and selector.strip().endswith("svg")]
+        self.assertEqual(sized, [f"#{STAGE_ID} svg"])
+
+    def test_the_phone_widths_drop_the_filters_as_well_as_the_pixels(self, *_mocks):
+        """AC 8: what actually costs a weak GPU on this layer.
+
+        Every creature carries a drop-shadow and the ghosts carry a blur, and
+        on a weak phone those are the expensive part -- the movement is cheap
+        beside them. Shrinking a creature to 60% while it still paints a 26px
+        glow saves the cheap half and keeps the dear one, which is the shape
+        of optimisation that reads as done and measures as unchanged.
+
+        Declared once, in the 560px block: 400px is narrower, so it inherits
+        this and needs no second copy. Read through `_media_block`, which
+        matches braces: a slice to the end of the sheet would find this rule
+        just as happily if it were moved OUT of the media query, and
+        "filters dropped at phone width" and "filters dropped always" are
+        very different changes to a page.
+        """
+        narrow = _media_block(self._sheet(), "(max-width:560px)")
+
+        self.assertIn("filter:none", _declaration_block(narrow, f"#{STAGE_ID} *"))
+
+    def test_the_title_is_lit_by_candlelight_only_in_the_manor(self, *_mocks):
+        """AC 1: Manor's atmosphere that is NOT in the decoration layer.
+
+        **S11** promises "candlelight, drifting mist, a glow in the dark".
+        The mist is a rung; the candlelight is the page's own title
+        guttering, which is where the mockup puts it too.
+
+        A slow shallow gutter rather than the logo's `.flicker`, which is a
+        hard two-frame blink borrowed from a failing tube: a title that
+        blinks reads as broken, and a title that gutters reads as lit. They
+        are separate animations on separate elements for that reason, and
+        the assertion checks they stayed separate.
+
+        Manor-gated by its selector, so no other world needs a rule to turn
+        it off, and the stillness class stops it with everything else.
+        """
+        css = self._sheet()
+        home = self.client.get(reverse("ui:home")).content.decode()
+
+        self.assertIn('class="display lantern', home)
+        self.assertIn("animation:lantern", _declaration_block(css, f".{MANOR} .lantern"))
+        self.assertNotIn("lantern", _declaration_block(css, ".flicker"))
