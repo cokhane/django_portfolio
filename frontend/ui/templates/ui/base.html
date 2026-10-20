@@ -420,18 +420,90 @@
     .ch-desc{min-height:0; margin-bottom:11px}
   }
 
+  /* ── THE DECORATION LAYER (US-6.1) ────────────────────────────────────
+     The stage, not the cast. 6.2 and 6.3 put creatures on it; 6.4 adds
+     weather and 6.5 a scare beside them. Two elements, and the split IS the
+     design.
+
+     🚨 `#decor` IS NOT POSITIONED, and nothing may ever position it. A
+     `position:fixed` box forms a stacking context whatever its `z-index`,
+     and a child of one can never outrank it -- so a single fixed container
+     would flatten the whole ladder below into one rung, and 6.4's blackout
+     would paint UNDER the page it exists to black out. `position`,
+     `z-index`, `transform`, `opacity` and `filter` each re-form that
+     context: none of them belongs on this element. It carries exactly two
+     things, the two every layer inside it inherits -- no pointer, no
+     screen reader -- and it is the ONE container US-5.5's contract asked
+     for, so ONE rule withdraws every rung at once.
+
+     THE LADDER. Each rung is a CHILD of `#decor` with its own
+     `position:fixed` and `z-index`, ranked against the root:
+
+       drifting cast `#drift`            0      <- this story ships this one
+       page content `#page`              1
+       things on the glass              26
+       blood pool · ceiling band       399 · 400
+       storm · bolt                    440 · 441
+       blackout · what it reveals      450 · 455   <- EPIC 6 CEILING
+       ─────────────────────────────────────────
+       vignette · scanlines            488 · 489   US-5.2, not epic 6's
+       the REMOVE EFFECTS cluster      490         US-5.5
+       the chooser dialog              500         US-5.4
+
+     **455, not the 490 the mockup's table shows.** US-5.5 moved the glass
+     DOWN to 488/489 so its cluster reads through it, and recorded 455 as
+     what epic 6 stays under. Nothing built here may reach the glass.
+
+     THE CYCLE, which later stories plug into rather than retime against
+     each other. ONE shared duration: 72s. A crossing fades up from
+     nothing, crosses, and is back to nothing at 19.5% of it -- 14.04s --
+     then holds empty to 100%. The visible window is a keyframe PERCENTAGE,
+     which is exactly why the duration is a rule here and not nine inline
+     copies of itself: change 72s in one place and every creature's window
+     moves with it. The per-creature part is the DELAY alone, 7s apart,
+     inline as data. 14.04s of visibility starting every 7s is what keeps
+     at most two on screen. Measured across a full cycle with the mockup's
+     nine: two for 52.1s, one for 19.7s, three never.
+
+     `--decor-size` is a creature's own width, written inline by the story
+     that draws it; `--decor-scale` is the phone-width shrink and is set
+     ONLY by the two media rules below. Both are read WITH a fallback and
+     neither is declared anywhere: the fallback IS the default, so there is
+     no second copy to drift, and `test_theme.py`'s palette check -- which
+     reads a fallback-less `var(--x)` in a shared rule as a token every
+     world must define -- correctly leaves geometry alone.
+     ──────────────────────────────────────────────────────────────────── */
+  #page{position:relative; z-index:1}
+  #decor{pointer-events:none}
+  #drift{position:fixed; inset:0; z-index:0; overflow:hidden}
+  #drift > *{position:absolute; width:calc(var(--decor-size,0) * var(--decor-scale,1))}
+  #drift .crossing{animation-duration:72s}
+  @media (max-width:560px){
+    #drift{--decor-scale:.6}
+  }
+  @media (max-width:400px){
+    #drift{--decor-scale:.5}
+  }
+
   /* ── STILLNESS (US-5.5) ──────────────────────────────────────────────
      One class, one block, no per-animation list, so epic 6's unbuilt
      animations are covered already. `!important` because a universal
      selector loses to every themed rule and to an inline animation timing,
      and a visitor's preference outranking the author's is what it is for.
-     Ladder: epic 6 ceiling 455 · glass 488/489 · controls 490 · chooser 500.
+     The ladder is written ONCE, in the decoration block above; this rule is
+     the only thing epic 6 was licensed to add to this block.
      Never join this class to a world's class in one selector -- the theme
      suite would read the rule as that world's palette. The contract epic 6
      builds to is in this story's Implementation notes.
      ──────────────────────────────────────────────────────────────────── */
   .no-motion *,.no-motion *::before,.no-motion *::after{animation:none !important; transition:none !important}
   .no-motion body::before,.no-motion body::after{display:none}
+  /* THE one selector US-5.5 licensed epic 6 to add here (its Q1, contract 2).
+     The container, withdrawn whole -- `display:none` cancels the work rather
+     than covering it, and one rung added later needs no second line. A FOURTH
+     rule, or a second selector joined to this one, is the per-creature list
+     `test_effects.py` counts these rules to forbid. */
+  .no-motion #decor{display:none}
 
   /* ── NO SCARES (US-5.6) ────────────────────────────────────────
      The twin of the block above, and deliberately NOT folded into it.
@@ -580,10 +652,57 @@
      with no hook into the choosing path and no second list of which worlds
      scare. The markup stays identical in every world, so F-18 holds. */
   .clean #toggle-scares{display:none}
+  /* S11, the same way: "No blood, no creatures, nothing that moves." This
+     world is defined by absence, so the layer goes whole rather than being
+     quietened -- a calmer bat is still a bat. Here and not in script for the
+     reason the rule above records: a world swaps live, and a rule re-reads on
+     the frame the root class changes. */
+  .clean #decor{display:none}
 </style>
 </head>
 <body>
-{% block content %}{% endblock %}
+{% comment %}
+  `#page` is what lifts the work above the drifting layer -- the mockup's
+  `.wrap{position:relative; z-index:1}`, which this codebase never had
+  because Tailwind gives each section its own gutter. Without it the content
+  is unpositioned, and an unpositioned box paints BELOW a positioned one at
+  `z-index:0`: the decoration would cover the portfolio. It is named `#page`
+  rather than `.wrap` so nobody diffing against the mockup expects the
+  1180px gutter to come with it.
+
+  The sticky nav lives INSIDE it and keeps its own `z-50`, which now ranks
+  against this wrapper rather than the root -- so every rung of the ladder
+  paints over the nav. That is the intended answer and not a side effect: a
+  power cut that leaves a lit nav bar is not a power cut. The band that must
+  not cross the nav (US-6.3) is held off it by GEOMETRY, measuring the nav's
+  height, not by stacking order.
+{% endcomment %}
+<div id="page">{% block content %}{% endblock %}</div>
+
+{% comment %}
+  ── THE DECORATION LAYER (US-6.1) ──────────────────────────────────────
+  The stage every later decoration story builds on; the stylesheet block
+  of the same name holds the ladder and the cycle it hands them.
+
+  🚨 NOTHING IN HERE MAY TAKE A CLICK OR A FOCUS (NFR-8, F-14). No `<a>`,
+  no `<button>`, no `tabindex`, and no child that sets `pointer-events`:
+  a decorative shape that swallows a tap is a dead patch over work a
+  visitor is trying to reach, and a creature announced between two case
+  studies is what `aria-hidden` on this element exists to prevent.
+
+  Rendered `hidden` and revealed by script, like the chooser and the
+  control cluster -- US-5.5's contract, and the reason is its Q3: the OS
+  reduced-motion preference is read ONCE, by the store, and expressed as a
+  class, so there is no media query in the stylesheet to catch a visitor
+  whose scripts are off. Shipping the layer hidden makes that visitor a
+  still site by construction.
+
+  Outside `#page`, and outside `#grid`, so neither a category swap nor a
+  page change can duplicate or disturb it (F12).
+{% endcomment %}
+<div id="decor" aria-hidden="true" hidden>
+  <div id="drift"></div>
+</div>
 
 {% comment %}
   ── THE WORLD CHOOSER (US-5.4) ─────────────────────────────────────────
@@ -691,6 +810,7 @@
 
   var chooser = document.getElementById("chooser");
   var controls = document.getElementById("site-controls");
+  var decor = document.getElementById("decor");
   var reopen = document.getElementById("open-chooser");
   var stillness = document.getElementById("toggle-effects");
   var scareSwitch = document.getElementById("toggle-scares");
@@ -831,7 +951,15 @@
   renderScares();
 
   // The controls do nothing without this script, so this script reveals them.
+  // The decoration is the opposite case -- it is pure CSS and would run
+  // perfectly well unrevealed -- and it is revealed HERE anyway, because the
+  // OS reduced-motion preference reaches the page only through this script's
+  // store. A visitor with scripts off gets no layer rather than one they
+  // asked their system to stop. Unconditional: the head script has already
+  // put the stillness class on `<html>` if it belongs there, and the
+  // stylesheet withdraws the layer from under it.
   controls.hidden = false;
+  decor.hidden = false;
 
   // AC 1, entire. `world()` returns null when nothing valid is stored, and
   // US-5.3 built that null to BE the "ask them" signal -- so a returning

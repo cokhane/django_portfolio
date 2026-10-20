@@ -48,6 +48,11 @@ from .tests import AVAILABILITY, PROJECTS, SKILLS
 CONTROL_ID = "toggle-effects"
 STILL_CLASS = "no-motion"
 
+# US-6.1's decoration container -- the one selector this story's contract
+# licensed epic 6 to add to the stillness block. `test_decor.py` owns what
+# the layer IS; what is pinned here is that withdrawing it cost one rule.
+LAYER_ID = "decor"
+
 # The mockup's four strings, which F-18 freezes: a world changes the palette,
 # never the words.
 LABELS = ("REMOVE EFFECTS", "RESTORE EFFECTS")
@@ -252,10 +257,21 @@ class StillnessStylesheetTests(SimpleTestCase):
     def test_stillness_is_one_block_and_not_a_list(self, *_mocks):
         """AC 12: the property that keeps this story from rotting.
 
-        Two rules. Not nine, and not nine-plus-one-per-creature as epic 6
-        lands: a per-animation opt-out list is a list somebody has to
-        remember to add to, and the whole reason this story ships BEFORE the
-        things it withdraws is that nobody will.
+        THREE rules, and three is the whole licence. This story shipped two
+        and wrote the contract epic 6 inherits, which grants it exactly ONE
+        more: the decoration container, withdrawn. US-6.1 spent it on
+        `.no-motion #decor`. A FOURTH is the per-animation opt-out list this
+        test exists to forbid -- a list somebody has to remember to add to,
+        and the whole reason this story shipped BEFORE the things it
+        withdraws is that nobody will.
+
+        The count alone no longer has teeth, which is why the selector is
+        pinned beside it. A count of three is equally satisfied by
+        `.no-motion #decor,.no-motion .storm,.no-motion .blood{...}` -- the
+        same list, grown sideways INSIDE one selector list instead of
+        downwards. Matching the rule exactly is what keeps the sideways door
+        shut; `_rules_naming` returns each selector list with its opening
+        brace attached, so an added selector changes the string.
 
         `WORLD_JOIN` is the other half, and it guards a mistake that is
         silent rather than ugly: `test_theme.py` finds a world's palette by
@@ -265,7 +281,9 @@ class StillnessStylesheetTests(SimpleTestCase):
         """
         css = self._css()
 
-        self.assertEqual(len(_rules_naming(css, STILL_CLASS)), 2)
+        rules = [rule.strip() for rule in _rules_naming(css, STILL_CLASS)]
+        self.assertEqual(len(rules), 3)
+        self.assertIn(f".{STILL_CLASS} #{LAYER_ID}{{", rules)
         self.assertIsNone(
             _world_join(css, STILL_CLASS), "a world class is joined to the stillness class"
         )
