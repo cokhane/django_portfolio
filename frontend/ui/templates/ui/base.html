@@ -446,6 +446,7 @@
        blood pool · ceiling band       399 · 400
        storm · bolt                    440 · 441
        blackout · what it reveals      450 · 455   <- EPIC 6 CEILING
+       the lunge                             455   <- US-6.5, and LAST
        ─────────────────────────────────────────
        vignette · scanlines            488 · 489   US-5.2, not epic 6's
        the REMOVE EFFECTS cluster      490         US-5.5
@@ -901,6 +902,8 @@
      itself; REMOVE EFFECTS sits at 490 and the highest rung here is 455, so
      the control reads THROUGH the dark and stays clickable. 455 is the
      epic-6 ceiling and this story takes it -- nothing later may go higher.
+     US-6.5 does not: it SHARES this rung and wins on tree order by being
+     the layer's last child, which is what US-6.1's Q3 reserved for it.
      ──────────────────────────────────────────────────────────────────── */
   :root:not(.manor):not(.horror) .weather-cast{display:none}
   /* The group rule the two DRAWN rungs share, beside `#drift svg` and
@@ -992,6 +995,59 @@
      group. The silhouette needs no rule, so it carries no class. */
   .eyes svg{filter:drop-shadow(0 0 13px rgba(216,36,31,.95))}
 
+  /* ── THE SCARE (US-6.5) ─────────────────────────────────────────────
+     ONE strike per page load, and the page it happens to is the only one
+     with a hero to measure. The mockup runs this on the same infinite 19s
+     clock as the power cut; that is the **A1** collision the story names,
+     because a face arriving every 19 seconds will land on a client
+     mid-sentence. So the clock is gone: the tail script arms a single
+     timer and this block is only what it looks like when it lands.
+
+     🚨 THIS IS THE BELT, NOT THE CONTRACT. `.no-scares .scare` and
+     `.no-motion *` are what stop a strike ALREADY IN FLIGHT, on the frame
+     the switch flips -- no script can promise that, which is why US-5.6
+     wrote them before there was anything to withdraw. The script's half is
+     to never ARM when either switch is off, and to ask again before it
+     strikes (US-5.6's contract, lines 1 and 2).
+
+     455, SHARED with `.in-dark`, and the tie is broken by TREE ORDER --
+     which is why the lunge is the LAST child of the layer. US-6.1's Q3
+     already placed it: "a scare (470 in the mockup, 455 here)". Equal
+     z-index in one stacking context paints in document order, so last
+     means the face arrives over the eyes rather than under them. It is
+     also why this takes no number of its own: 455 is the top rung and
+     four `.in-dark` elements already share it, so sharing a rung is this
+     layer's habit rather than a new idea.
+
+     NOTHING HERE REPEATS WHAT THE CONTAINER SAYS -- no `pointer-events`,
+     no `aria-hidden`, no OS-preference query. `horror-cast` is the gate
+     and `.horror-cast svg` is the size, BOTH REUSED: this story adds
+     neither a gate rule nor a group rule, which is what keeps US-6.3's
+     single-gate test true as a fourth thing joins its world.
+
+     The attack is `.8s`, the mockup's 66.4%-70.6% window re-expressed as
+     a one-shot -- each stop is `(mockup% - 66.4) / 4.2`. The shake that
+     belongs with it is NOT here: it moves `#page`, which is content and
+     not decoration, so it lives in Found Footage's own section for the
+     reason recorded there.
+     ──────────────────────────────────────────────────────────────────── */
+  .lunge{position:fixed; inset:0; z-index:455; opacity:0;
+         display:flex; align-items:center; justify-content:center}
+  .lunge svg{filter:drop-shadow(0 0 60px rgba(0,0,0,.95))}
+  /* The trigger, and it must come AFTER the rule above: a stylesheet test
+     locates a rule by the literal `.lunge{`, and `.struck .lunge{` contains
+     that text -- written first it would be found instead, and a z-index
+     assertion would read a rule that has no z-index. */
+  .struck .lunge{animation:lunge .8s linear}
+  @keyframes lunge{
+    0%   {opacity:0;  transform:scale(.35) translateY(60px)}
+    14.3%{opacity:1;  transform:scale(1.55) translateY(0)   rotate(-1.5deg)}
+    33.3%{opacity:1;  transform:scale(2.30) translateY(-8px) rotate(1.5deg)}
+    52.4%{opacity:1;  transform:scale(2.05) translateY(4px)  rotate(-1deg)}
+    76.2%{opacity:.9; transform:scale(2.45)}
+    100% {opacity:0;  transform:scale(2.8)}
+  }
+
   /* ── STILLNESS (US-5.5) ──────────────────────────────────────────────
      One class, one block, no per-animation list, so epic 6's unbuilt
      animations are covered already. `!important` because a universal
@@ -1036,6 +1092,12 @@
      anything, and must not start when the answer is false -- prevent the
      sequence, do not merely hide its paint. The full contract US-6.5 builds
      to is in this story's Implementation notes.
+
+     THAT SEQUENCE NOW EXISTS, at the foot of this file. It asks both
+     switches before it arms a timer and again before it strikes, so these
+     two rules are what stop a strike ALREADY IN FLIGHT -- the frame the
+     switch flips, which no script could promise. Both halves are needed and
+     neither is redundant: the script prevents, these cancel.
 
      Never join either class to a world's class in one selector -- the theme
      suite would read the rule as that world's palette.
@@ -1134,6 +1196,36 @@
   .horror .btn[aria-pressed="true"]{background:var(--neon); border-color:var(--neon); color:#e8e4da}
   .horror body::before{background:repeating-linear-gradient(0deg,rgba(0,0,0,.34) 0 1px,transparent 1px 3px)}
   .horror body::after{background:radial-gradient(ellipse at center,transparent 38%,rgba(0,0,0,.9) 100%)}
+  /* US-6.5's other half, and the one decoration in this codebase that is NOT
+     on the decoration layer. The shake moves `#page` -- the CONTENT -- so
+     every guarantee the layer hands its rungs for free is missing here: no
+     `pointer-events:none` to inherit, and no `#decor{display:none}` to be
+     withdrawn by. It has to be gated on its own, and it is gated by
+     PRESENCE: declared here, in the one world that has a face to go with
+     it, it is nothing by absence in the other three. That is what keeps
+     Just the Work still (S11) without a line in Just the Work's block, and
+     it is the shape `.manor .lantern` above already uses for behaviour only
+     one world has.
+
+     The two belts already outrank this and stop the shake for scares-off,
+     effects-off and reduced motion alike, so nothing here is added to
+     either block -- see THE SCARE above.
+
+     A world swaps LIVE through the chooser, so this is a rule rather than a
+     script check, for US-5.6's Q2 reason: it re-reads on the frame the root
+     class changes, which means a visitor who flees to Just the Work
+     mid-strike stops shaking on that same frame. A JavaScript world list
+     could not promise that. */
+  .horror .struck .jolt{animation:jolt .8s linear}
+  @keyframes jolt{
+    0%   {transform:translate(0,0)}
+    16.7%{transform:translate(-16px,9px)  rotate(-.6deg)}
+    26.2%{transform:translate(14px,-11px) rotate(.6deg)}
+    35.7%{transform:translate(-11px,6px)  rotate(-.4deg)}
+    47.6%{transform:translate(8px,-5px)}
+    66.7%{transform:translate(-4px,2px)}
+    90.5%,100%{transform:translate(0,0)}
+  }
 
   /* ══ JUST THE WORK — "No blood, no creatures, nothing that moves." ══
      The world defined by ABSENCE, which is why the overlays are SUPPRESSED
@@ -1198,8 +1290,21 @@
   power cut that leaves a lit nav bar is not a power cut. The band that must
   not cross the nav (US-6.3) is held off it by GEOMETRY, measuring the nav's
   height, not by stacking order.
+
+  US-6.5: it wears `jolt` STATICALLY, in every world and on every page, and
+  that is deliberate. The class is US-5.6's shake hook, and `.no-scares .jolt`
+  was written against it before there was anything to shake -- a hook added
+  only when a scare fires would not be there for the belt to hit. It is inert
+  on its own: the animation is declared ONLY under `.horror .struck`, so three
+  worlds never move and nor does this page until the script strikes.
+
+  The `transform` that lands on it forms no new stacking context -- this
+  element is already one, having a non-auto `z-index` -- so the ladder above
+  is unaffected, and nothing inside is `position:fixed` for a transformed
+  ancestor to re-parent. The nav is `sticky`, which rides the shake with the
+  page, as the mockup's does.
 {% endcomment %}
-<div id="page">{% block content %}{% endblock %}</div>
+<div id="page" class="jolt">{% block content %}{% endblock %}</div>
 
 {% comment %}
   ── THE DECORATION LAYER (US-6.1) ──────────────────────────────────────
@@ -1348,6 +1453,27 @@
   <div class="in-dark eyes weather-cast scare" style="top:63%; right:11%; --decor-size:52px">{% include "ui/decor/_eyes.html" %}</div>
   <div class="in-dark eyes weather-cast scare" style="top:81%; left:46%; --decor-size:40px">{% include "ui/decor/_eyes.html" %}</div>
   <div class="in-dark weather-cast scare" style="bottom:0; right:4%; --decor-size:300px">{% include "ui/decor/_looming.html" %}</div>
+
+  {% comment %}
+    ── THE SCARE (US-6.5) ────────────────────────────────────────────────
+    🚨 ITS POSITION IN THIS FILE IS LOAD-BEARING, and that is the one thing
+    this comment is here to say. It is the LAST child of the layer, and it
+    must stay last: it shares rung 455 with the four `.in-dark` elements
+    above it, and equal z-index in one stacking context paints in tree
+    order. Last means the face arrives OVER the eyes. Append anything after
+    it and the face arrives under. The stylesheet block explains the rung.
+
+    It carries no `style=` and no timing, which makes it the one element on
+    the layer that is not data against a shared rule -- there is nothing to
+    vary, because there is exactly one of it and it fills the viewport. When
+    it strikes is not markup's business either: the script puts a class on
+    `<body>` and the stylesheet answers.
+
+    Two classes, both borrowed: `horror-cast` is US-6.3's world gate and
+    `scare` is US-5.6's switch hook. Wearing them is how this joins both,
+    which is why this story adds neither rule.
+  {% endcomment %}
+  <div class="lunge horror-cast scare">{% include "ui/decor/_lunge.html" %}</div>
 </div>
 
 {% comment %}
@@ -1508,6 +1634,13 @@
     chooser.hidden = true;
     var back = opener && opener !== document.body ? opener : reopen;
     back.focus();
+    // US-6.5, and this is the ONE place a world is entered: `choose()` is
+    // the single write path, and every way of making a choice -- a card,
+    // the skip, Escape -- closes through here. So the grace period restarts
+    // on each entry, which is US-5.6's contract line 5 read literally: the
+    // first scare never fires within the grace period after a visitor
+    // enters a world. No clock runs while the dialog is open.
+    arm();
   }
 
   // The ONE write path. A card, the skip and Escape all arrive here, so
@@ -1621,6 +1754,82 @@
     window.addEventListener("resize", measureNav);
   }
 
+  // ── THE SCARE (US-6.5) ──────────────────────────────────────────────
+  // The sequence US-5.6 wrote its two belt rules for, and the first timer
+  // this page has ever owned. Its whole job is to NOT fire: once per page
+  // load at the most, after a grace period, only above the fold, only in a
+  // world that has a face, and never with either switch off.
+  //
+  // 🚨 "PREVENT, NOT HIDE" IS THE CONTRACT (US-5.6, lines 1 and 2). The
+  // stylesheet cannot stop a timer, so this asks `scares()` and `effects()`
+  // before it ARMS and again before it STRIKES. A visitor who turns either
+  // off during the grace period gets no strike at all, rather than a strike
+  // rendered invisibly -- which the `.jolt` shake would have made audible
+  // through the page anyway, since it moves content the layer cannot hide.
+  //
+  // 19 SECONDS, and the number is not arbitrary: it is one full power-cut
+  // cycle. A Found Footage visitor has by then seen the lightning, the
+  // blackout, the eyes it reveals, and had five seconds of restored light
+  // to find SCARES: OFF -- the dark is the dress rehearsal, and the switch
+  // is reachable the whole time at rung 490. The mockup's own first strike
+  // is at 12.6s (66.4% of its 19s loop), so this is longer, not shorter.
+  var hero = document.getElementById("home");
+  var lunge = document.querySelector(".lunge");
+  var STRUCK = "struck";
+  var GRACE_MS = 19000;
+  var ATTACK_MS = 800;
+  var pending = null;
+  var fired = false;
+
+  function scaresAllowed() {
+    return window.axePrefs.scares() && window.axePrefs.effects();
+  }
+
+  // 🚨 THE STYLESHEET DECIDES WHICH WORLDS SCARE, AND THIS ASKS IT.
+  // `getClientRects()` is empty when the element or any ancestor is
+  // `display:none`, so this ONE question answers all four gates at once --
+  // the world gate (`:root:not(.horror) .horror-cast`), the scares switch,
+  // REMOVE EFFECTS and Just the Work (both via `#decor`). The alternative
+  // was a list of scaring worlds in JavaScript, which would be a SECOND
+  // answer to a question `ROOT_CLASSES` and the gate rule already answer,
+  // and would drift the day a world is added.
+  // Not `offsetParent`, which is always null for a `position:fixed` box and
+  // would read every world as having no face.
+  function faceWouldShow() {
+    return lunge.getClientRects().length > 0;
+  }
+
+  function unstrike() { document.body.classList.remove(STRUCK); }
+
+  function strike() {
+    // A1, the tie-break the BRD already made: legibility beats delight. Past
+    // half the hero the visitor is reading, so the strike is FORGONE rather
+    // than deferred -- deferring it only moves the ambush further into the
+    // work. `fired` stays false, so entering a world again earns a new one.
+    if (!scaresAllowed() || window.scrollY > hero.offsetHeight / 2) { return; }
+    // Spending the one strike in a world that renders nothing would mean a
+    // visitor who waits in Manor and then crosses to Found Footage never
+    // sees it -- the strike was used up invisibly.
+    if (!faceWouldShow()) { return; }
+    fired = true;
+    document.body.classList.add(STRUCK);
+    // Withdrawn on a timer rather than on `animationend`, which never fires
+    // for an element the gate is holding at `display:none` -- the class
+    // would survive, and a re-applied CSS animation RESTARTS, so the next
+    // world swap would replay the lunge at the moment of arrival.
+    window.setTimeout(unstrike, ATTACK_MS);
+  }
+
+  function arm() {
+    window.clearTimeout(pending);
+    // No hero means this is not the home page. The project detail page is
+    // the commercial payload -- a client reading `// RESULT` is the one
+    // moment the site is doing its job -- so it is exempt, and the 404 with
+    // it. The overlay still ships on every page; nothing arms it there.
+    if (!hero || fired || !scaresAllowed()) { return; }
+    pending = window.setTimeout(strike, GRACE_MS);
+  }
+
   // The controls do nothing without this script, so this script reveals them.
   // The decoration is the opposite case -- it is pure CSS and would run
   // perfectly well unrevealed -- and it is revealed HERE anyway, because the
@@ -1635,7 +1844,10 @@
   // AC 1, entire. `world()` returns null when nothing valid is stored, and
   // US-5.3 built that null to BE the "ask them" signal -- so a returning
   // visitor is never asked, and neither is anyone on a pinned render.
-  if (!pinned && window.axePrefs.world() === null) { openChooser(); }
+  // US-6.5: a visitor who is NOT asked has already entered their world, so
+  // they are armed here. The asked visitor is armed by `closeChooser()`
+  // instead, once they have chosen -- never under an open dialog.
+  if (!pinned && window.axePrefs.world() === null) { openChooser(); } else { arm(); }
 })();
 </script>
 </body>

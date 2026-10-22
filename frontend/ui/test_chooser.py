@@ -257,11 +257,31 @@ class ChooserScriptTests(SimpleTestCase):
         `setWorld` is the single validation point US-5.3 built. A chooser
         that applied a class itself would be a second way to put a world on
         the page, free to disagree with the stored value.
+
+        🚨 **AMENDED BY US-6.5, and the amendment makes this STRICTER.** The
+        assertion was `assertNotIn("classList.add", script)` -- a proxy for
+        the property the docstring actually names, which is that no world
+        reaches `<html>` except through the store. US-6.5 puts a transient
+        trigger class on `<body>`: not a world, not on the root, and gone
+        800ms later. The proxy forbade it; the property does not.
+
+        So the property is now asserted directly, and in the one form that
+        cannot be satisfied by an alias: EVERY class mutation in this script
+        happens on `document.body`. The root element -- where a world lives
+        -- is only ever read, which `currentWorld`'s `applied.contains` is.
+        That covers `remove` and `toggle` as well as `add`, where the old
+        line covered only `add` and would have let
+        `documentElement.classList.toggle` through untouched.
         """
         script = _chooser_script(self._home())
 
         self.assertIn("window.axePrefs.setWorld(name)", script)
-        self.assertNotIn("classList.add", script)
+        for mutator in ("add", "remove", "toggle"):
+            with self.subTest(mutator=mutator):
+                self.assertEqual(
+                    script.count(f"classList.{mutator}"),
+                    script.count(f"document.body.classList.{mutator}"),
+                )
 
     def test_the_chooser_never_logs(self, *_mocks):
         """The store's rule, extended: a visitor's console is not a notepad."""
