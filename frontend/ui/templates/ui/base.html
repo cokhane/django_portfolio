@@ -441,7 +441,8 @@
 
        drifting cast `#drift`            0      <- this story ships this one
        page content `#page`              1
-       things on the glass              26
+       things on the glass              26      <- mist (US-6.2), handprints (US-6.3)
+       the tape's tracking band         28      <- US-6.3
        blood pool · ceiling band       399 · 400
        storm · bolt                    440 · 441
        blackout · what it reveals      450 · 455   <- EPIC 6 CEILING
@@ -453,6 +454,13 @@
      **455, not the 490 the mockup's table shows.** US-5.5 moved the glass
      DOWN to 488/489 so its cluster reads through it, and recorded 455 as
      what epic 6 stays under. Nothing built here may reach the glass.
+
+     **28 is the tape, 26 is the glass, and the order between them is the
+     point.** A handprint is something leaning ON the glass; the tracking
+     band is interference in the RECORDING of it. So the band sweeps OVER
+     the hands -- under them it reads as a smear behind the glass rather
+     than as a fault in the tape -- and stays UNDER the blood at 399/400,
+     because blood is on the ceiling and the ceiling is not on the tape.
 
      THE CYCLE, which later stories plug into rather than retime against
      each other. ONE shared duration: 72s. A crossing fades up from
@@ -472,6 +480,15 @@
      no second copy to drift, and `test_theme.py`'s palette check -- which
      reads a fallback-less `var(--x)` in a shared rule as a token every
      world must define -- correctly leaves geometry alone.
+
+     🚨 `--decor-scale` is set on the LAYER, not on the stage, and US-6.3
+     is why. A custom property inherits, so `#drift > *` reads the same
+     value through its parent either way -- but the rungs above the stage
+     (the blood at 400, the pool at 399, the hands at 26) are SIBLINGS of
+     `#drift`, not children, and a token declared on the stage would reach
+     the cast and miss them entirely. Set here it scales every rung,
+     including the ones US-6.4 has yet to add. Setting a custom property
+     forms no stacking context, so this does not break the rule above.
      ──────────────────────────────────────────────────────────────────── */
   #page{position:relative; z-index:1}
   #decor{pointer-events:none}
@@ -484,17 +501,19 @@
      written in longhand would cross once and stop. */
   #drift .crossing{animation-duration:72s; animation-iteration-count:infinite}
   @media (max-width:560px){
-    #drift{--decor-scale:.6}
+    #decor{--decor-scale:.6}
     /* US-6.2: the scale-down drops the FILTERS too, not merely the pixels.
        A drop-shadow and a blur are the expensive part of this layer on a
        weak GPU -- the movement is cheap by comparison -- so shrinking a
        creature while it still paints a 26px glow saves the wrong half.
        Declared once, here: 400px is below 560px, so the narrower screen
-       inherits it and needs no second copy. */
-    #drift *{filter:none}
+       inherits it and needs no second copy. On the container rather than
+       the stage for the reason the comment above gives -- US-6.3's band
+       carries a drop-shadow of its own and is not inside `#drift`. */
+    #decor *{filter:none}
   }
   @media (max-width:400px){
-    #drift{--decor-scale:.5}
+    #decor{--decor-scale:.5}
   }
 
   /* ── HAUNTED MANOR'S CAST (US-6.2) ───────────────────────────────────
@@ -947,8 +966,12 @@
     creature's window to stop meaning fourteen seconds.
 
     THE DELAYS ARE A GRID, 7s apart, and they are allocated ACROSS worlds:
-    Manor holds 0/14/21/28/35/42/49 and leaves 56 and 63 to US-6.3's
-    Found Footage band. Measured over a full cycle against the real opacity
+    Manor holds 0/14/21/28/35/42/49 and leaves 56 and 63 FREE. US-6.3 was
+    expected to take them and does not: its band, pool and handprints each
+    run their own clock and nothing it ships subscribes to this one. In the
+    mockup those two slots belong to Found Footage's stalkers and their
+    kills, which no story has claimed yet. Measured over a full cycle
+    against the real opacity
     envelopes: two on screen 33.9s, one 28.4s, none 9.7s, three NEVER. The
     bare stretch is covered by the lanterns and the mist, which do not
     cross and so are always there.

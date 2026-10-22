@@ -108,7 +108,9 @@ WORLD_GATE = f":root:not(.{MANOR}) .{MANOR_CAST}"
 
 # The slow clock's subscribers, and Manor's delays on it -- seven creatures
 # plus the beam, which rides the saucer's slot to run its own envelope.
-# 7s apart, leaving 56 and 63 for US-6.3's Found Footage band.
+# 7s apart, leaving 56 and 63 FREE -- US-6.3 was expected to take them and
+# does not: its band, pool and hands each run their own clock. In the mockup
+# the two slots belong to Found Footage's stalkers, which no story has claimed.
 CROSSING = "crossing"
 DELAYS = ("0s", "-14s", "-21s", "-28s", "-35s", "-42s", "-49s", "-49s")
 
@@ -464,9 +466,12 @@ class DecorStylesheetTests(SimpleTestCase):
         """AC 10: two breakpoints, one token, no per-creature list.
 
         The mockup shrinks eleven creatures with eleven `!important` widths at
-        560px and six more at 400px. One token the stage redefines does the
+        560px and six more at 400px. One token the LAYER redefines does the
         same job, and a creature that arrives later is scaled without anyone
-        editing a media block.
+        editing a media block. On the layer and not the stage because the
+        rungs above `#drift` -- US-6.3's blood, pool and hands -- are its
+        SIBLINGS: a token declared on the stage reaches the cast and misses
+        every one of them. The stage still READS it; it just no longer owns it.
 
         Read through `_media_block`, which matches braces. This test used to
         slice from the last `560px` query to the END of the sheet, which
@@ -482,7 +487,7 @@ class DecorStylesheetTests(SimpleTestCase):
         for width, scale in SCALES:
             with self.subTest(width=width):
                 block = _media_block(css, f"(max-width:{width})")
-                self.assertIn(scale, _declaration_block(block, f"#{STAGE_ID}"))
+                self.assertIn(scale, _declaration_block(block, f"#{LAYER_ID}"))
         self.assertIn("var(--decor-scale,1)", _declaration_block(css, f"#{STAGE_ID} > *"))
 
     def test_both_switches_withdraw_the_whole_layer(self, *_mocks):
@@ -898,8 +903,10 @@ class ManorCastStylesheetTests(SimpleTestCase):
         glow saves the cheap half and keeps the dear one, which is the shape
         of optimisation that reads as done and measures as unchanged.
 
-        Declared once, in the 560px block: 400px is narrower, so it inherits
-        this and needs no second copy. Read through `_media_block`, which
+        Declared once, in the 560px block, and on the LAYER so it reaches the
+        rungs outside the stage too -- US-6.3's band carries a drop-shadow of
+        its own. 400px is narrower, so it inherits this and needs no second
+        copy. Read through `_media_block`, which
         matches braces: a slice to the end of the sheet would find this rule
         just as happily if it were moved OUT of the media query, and
         "filters dropped at phone width" and "filters dropped always" are
@@ -907,7 +914,7 @@ class ManorCastStylesheetTests(SimpleTestCase):
         """
         narrow = _media_block(self._sheet(), "(max-width:560px)")
 
-        self.assertIn("filter:none", _declaration_block(narrow, f"#{STAGE_ID} *"))
+        self.assertIn("filter:none", _declaration_block(narrow, f"#{LAYER_ID} *"))
 
     def test_the_title_is_lit_by_candlelight_only_in_the_manor(self, *_mocks):
         """AC 1: Manor's atmosphere that is NOT in the decoration layer.
