@@ -34,7 +34,7 @@ from .test_effects import LAYER_ID, _z
 from .test_theme import _colour_literals, _declaration_block
 from .tests import AVAILABILITY, PROJECTS, SKILLS
 
-# The six elements and how many of each. Written out because the COUNT is the
+# The seven elements and how many of each. Written out because the COUNT is the
 # decision: three pairs of eyes at three sizes read as a room with things in it,
 # where one pair reads as a mascot. A seventh added without a rung would pass a
 # count-free test.
@@ -107,7 +107,7 @@ class WeatherMarkupTests(SimpleTestCase):
         )
 
     def test_the_whole_of_the_weather_is_in_the_layer(self, *_mocks):
-        """AC 1 and AC 5: six elements, and every one of them inside `#decor`.
+        """AC 1 and AC 5: seven elements, and every one of them inside `#decor`.
 
         The count is asserted rather than mere presence, because the thing
         that breaks silently is an element added outside the container --
