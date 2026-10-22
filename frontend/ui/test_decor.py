@@ -102,6 +102,12 @@ MANOR_CAST = "manor-cast"
 # the layer's GROUP rules and there are now two groups on it.
 HORROR_CAST = "horror-cast"
 
+# US-6.4's, named here for the same reason -- it is the third group. Unlike
+# the two above it names no world: the storm and the power cut render in TWO
+# of them, so the gate spells `:not(.manor):not(.horror)` and the class says
+# what the elements ARE rather than whose they are.
+WEATHER_CAST = "weather-cast"
+
 # US-5.6 built this as the ONE container every scare element lives in, and
 # `.no-scares .scare{display:none}` already withdraws it. The approaching
 # ghost joins that container rather than getting a rule of its own, so this
@@ -918,9 +924,9 @@ class ManorCastStylesheetTests(SimpleTestCase):
         of the stage precisely so that geometry meant for artwork never
         reaches it. US-6.3's band could not share that rule for the same
         reason: its elements are siblings of the stage too, so they carry a
-        second GROUP rule of their own. Two groups, two rules -- what stays
-        banned is a rule naming one element, which is the list this test is
-        named after.
+        second GROUP rule of their own, and US-6.4's weather is the third on
+        the same footing. A group per set of siblings -- what stays banned is
+        a rule naming one element, which is the list this test is named after.
 
         Asserted in BOTH directions, the second DERIVED: every rule in the
         sheet that sizes an SVG is collected, and the shared one must be the
@@ -940,7 +946,10 @@ class ManorCastStylesheetTests(SimpleTestCase):
                 self.assertIn(declaration, shared)
         sized = [selector.strip() for selector, block in CSS_RULE.findall(css)
                  if "width:100%" in block and selector.strip().endswith("svg")]
-        self.assertEqual(sized, [f"#{STAGE_ID} svg", f".{HORROR_CAST} svg"])
+        self.assertEqual(
+            sized,
+            [f"#{STAGE_ID} svg", f".{HORROR_CAST} svg", f".{WEATHER_CAST} svg"],
+        )
 
     def test_the_phone_widths_drop_the_filters_as_well_as_the_pixels(self, *_mocks):
         """AC 8: what actually costs a weak GPU on this layer.

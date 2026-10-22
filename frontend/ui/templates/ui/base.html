@@ -841,6 +841,157 @@
             animation:track 7s linear infinite}
   @keyframes track{0%{top:-70px}100%{top:100%}}
 
+  /* ── THE STORM AND THE POWER CUT (US-6.4) ────────────────────────────
+     The weather US-6.1's ladder reserved rungs 440-455 for. Four rungs and
+     TWO clocks, and the clocks are the whole story.
+
+     🚨 13 AND 19 ARE PRIME, AND THAT IS THE DESIGN. Two cycles share a
+     factor or they do not; these do not, so they return to the same phase
+     only every 13 x 19 = 247 seconds. Tidy them to 15 and 20 and the pair
+     realigns every 60s -- four times as often -- and a visitor who stays a
+     few minutes begins to feel the schedule. The numbers cost nothing and
+     they ARE the effect. Do not round them.
+
+     ONE HONEST CORRECTION, measured rather than assumed. The story says the
+     two "coincide once every 247 seconds". The PATTERN does, exactly: the
+     offsets repeat window after window. The EVENTS do not -- the flash is
+     0.6s wide and the cut 3.6s, so within each window the flash lands in
+     the cut FOUR times (39s apart, then a 130s gap) and in the dark proper
+     twice. That is better than the story hoped for, and for its own reason:
+     an uneven 39/39/39/130 rhythm is what reads as weather, where one
+     tidy hit every four minutes would read as a metronome.
+
+     AND ONE COLLISION WORTH KNOWING. `#mist` already runs 19s, so in Manor
+     the cut is phase-locked to the mist and always will be. It is
+     unobservable -- `waft` is a slow continuous drift with no moment to
+     latch onto, and the cut covers it regardless -- so it is recorded
+     rather than fixed: 19s is fixed by the story and the mist is US-6.2's.
+     The day this matters is a FUTURE 19s element with a visible event.
+
+     SHORTHAND HERE, AND THAT IS NOT WHAT THE CAST BLOCK BANS. That ban is
+     on a `.crossing`, whose duration comes from the shared 72s rule, and on
+     `.bd`, whose duration comes from inline data -- in both, the shorthand
+     would silently reset a duration declared elsewhere. Every rung below
+     names its own duration in its own rule, exactly as `.pool`, `.hand`,
+     `.tracking` and `#mist` do, so there is nothing elsewhere to reset.
+
+     WORLD GATING IS ONE RULE, as both casts before it. The new thing is
+     that it names TWO worlds: Manor and Found Footage both read as places
+     a storm reaches. Arcade does not -- it is neon and scanlines, it
+     already carries its own weather in `body::before`, and lightning over
+     a cabinet is the wrong register. Just the Work gets nothing (S11) and
+     is withdrawn twice over, here and by `.clean #decor`. Arcade's root
+     class is the empty string, so `:not()` is the only form that reaches it.
+
+     NOTHING HERE REPEATS WHAT THE CONTAINER SAYS -- no `pointer-events`, no
+     `aria-hidden`, no OS-preference query, no REMOVE EFFECTS rule. 🚨 AND
+     REDUCED MOTION REMOVES THESE RATHER THAN FREEZING THEM, which is
+     load-bearing rather than merely consistent: a frozen `powercut` is a
+     page left permanently black. `.no-motion #decor{display:none}` is the
+     one resting state that cannot strand a visitor in the dark, and it is
+     already written.
+
+     OPACITY ONLY, on all four. Both backgrounds are static and only the
+     alpha moves, so the whole story is a compositor job. Animating
+     `background-color` would repaint the viewport every frame and is the
+     one thing here that would make a phone warm.
+
+     F-17 IS A STACKING PROMISE, and this story is where it is cashed in.
+     The cut tops out at .955 rather than 1, so the page keeps a trace of
+     itself; REMOVE EFFECTS sits at 490 and the highest rung here is 455, so
+     the control reads THROUGH the dark and stays clickable. 455 is the
+     epic-6 ceiling and this story takes it -- nothing later may go higher.
+     ──────────────────────────────────────────────────────────────────── */
+  :root:not(.manor):not(.horror) .weather-cast{display:none}
+  /* The group rule the two DRAWN rungs share, beside `#drift svg` and
+     `.horror-cast svg`. Sizing only: a bolt and a pair of eyes carry their
+     own colour on the shape, so no rule here gets to be a colour. */
+  .weather-cast svg{display:block; width:100%; height:auto}
+  /* The two DRAWN rungs read their width from the layer's own token, the way
+     the stage sets it for its children -- but each in its OWN rule rather
+     than in one shared with the other. Two reasons, and the second is the
+     load-bearing one. `#decor > *` would tie with `#drift > *` on
+     specificity AND would hand a width to the two full-viewport rungs,
+     which take `inset:0` instead. And a GROUPED selector cannot be used
+     here either: `.bolt,.in-dark{` contains the literal text `.in-dark{`,
+     which is what every stylesheet test in this repo anchors on to find a
+     rule, so the group would silently shadow the real rule and a z-index
+     test would read a width rule instead. US-6.3's rungs each carry their
+     own geometry for the same reason; two rungs is not a cast. */
+
+  /* LIGHTNING, 440, and the channel it strikes down at 441. Two elements on
+     ONE clock rather than one element, because the sky lights before the
+     channel is visible and stays lit a beat after it is gone -- the offset
+     between the two keyframe sets IS the depth. */
+  .storm{position:fixed; inset:0; z-index:440; opacity:0;
+         background:linear-gradient(180deg,rgba(207,230,255,.95),
+           rgba(150,185,230,.35) 42%,transparent 78%);
+         animation:storm 13s linear infinite}
+  @keyframes storm{
+    0%,61%    {opacity:0}
+    61.6%     {opacity:.9}
+    62.2%     {opacity:.08}
+    62.9%     {opacity:.75}
+    63.4%     {opacity:.04}
+    64.3%     {opacity:.45}
+    65.6%,100%{opacity:0}
+  }
+  .bolt{position:fixed; top:0; z-index:441; opacity:0;
+        width:calc(var(--decor-size,0) * var(--decor-scale,1));
+        animation:bolt 13s linear infinite}
+  /* The glow, and the one thing on this rung the 560px rule is right to
+     drop: `#decor *{filter:none}` takes it on a phone, where a 22px shadow
+     under a full-height SVG is the expensive half of the whole flash. */
+  .bolt svg{filter:drop-shadow(0 0 22px rgba(190,220,255,.95))}
+  @keyframes bolt{
+    0%,61.4%  {opacity:0}
+    61.7%     {opacity:1}
+    62.3%     {opacity:0}
+    62.9%     {opacity:.9}
+    63.5%,100%{opacity:0}
+  }
+
+  /* THE POWER CUT, 450, and what is standing there at 455. The stutter on
+     either side of the dark is what makes it read as a failing supply
+     rather than as a fade: the lights fight, lose, and fight again coming
+     back. The two keyframe sets are deliberately NOT identical -- what the
+     dark reveals appears AFTER the dark is established (55.8% against
+     52%) and is gone BEFORE the lights are back, so nothing is ever
+     lit by the stutter it is meant to be hidden by. */
+  .blackout{position:fixed; inset:0; z-index:450; background:#000; opacity:0;
+            animation:powercut 19s linear infinite}
+  @keyframes powercut{
+    0%,52%    {opacity:0}
+    53%       {opacity:.88}
+    53.6%     {opacity:0}
+    54.4%     {opacity:.72}
+    55%       {opacity:.04}
+    55.8%     {opacity:.96}
+    56.4%     {opacity:.25}
+    57%,67%   {opacity:.955}
+    67.8%     {opacity:.42}
+    68.4%     {opacity:.93}
+    69.2%     {opacity:.12}
+    70%       {opacity:.66}
+    70.8%,100%{opacity:0}
+  }
+  .in-dark{position:fixed; z-index:455; opacity:0;
+           width:calc(var(--decor-size,0) * var(--decor-scale,1));
+           animation:revealed 19s linear infinite}
+  @keyframes revealed{
+    0%,55.8%  {opacity:0}
+    57%       {opacity:.5}
+    58%       {opacity:.15}
+    59%,66%   {opacity:1}
+    67.6%     {opacity:.35}
+    68.6%,100%{opacity:0}
+  }
+  /* The only thing that needs to know an eye from a silhouette. A class
+     exists here because a RULE needs it: the glow belongs to the eyes and
+     would read as a red halo around the whole body if it were put on the
+     group. The silhouette needs no rule, so it carries no class. */
+  .eyes svg{filter:drop-shadow(0 0 13px rgba(216,36,31,.95))}
+
   /* ── STILLNESS (US-5.5) ──────────────────────────────────────────────
      One class, one block, no per-animation list, so epic 6's unbuilt
      animations are covered already. `!important` because a universal
@@ -1168,6 +1319,35 @@
   <div class="hand horror-cast" style="bottom:24px; right:30px; transform:rotate(14deg)">{% include "ui/decor/_hand.html" %}</div>
   <div class="hand horror-cast under-nav" style="left:26px; transform:translateY(60px) rotate(-168deg) scale(.8)">{% include "ui/decor/_hand.html" %}</div>
   <div class="tracking horror-cast"></div>
+
+  {% comment %}
+    ── THE STORM AND THE POWER CUT (US-6.4) ──────────────────────────────
+    Seven elements on two clocks, and SIBLINGS of the stage for the reason
+    US-6.3's band records: `#drift` is a stacking context at `z-index:0`, so
+    nothing inside it can paint above the work at `1`. A power cut that
+    renders behind the portfolio is not a power cut.
+
+    🚨 NOT ONE of them wears `crossing`. The 72-second cycle is Manor's cast;
+    these keep their own time -- 13s and 19s -- which is the entire point of
+    the story, so slots 56 and 63 stay free for whoever draws the stalkers.
+
+    `weather-cast` is the world gate and covers BOTH worlds that get this.
+    `scare` is on the power cut and on what it reveals, and NOT on the
+    lightning: see the stylesheet block for which switch governs which, and
+    the story's Implementation notes for why.
+
+    The data each element carries is its PLACE and its WIDTH, nothing else:
+    `--decor-size` is read by one rule in the sheet, as it is on the stage.
+    The two full-viewport rungs carry no style at all -- they are `inset:0`
+    and have nothing of their own to say.
+  {% endcomment %}
+  <div class="storm weather-cast"></div>
+  <div class="bolt weather-cast" style="left:16%; --decor-size:290px">{% include "ui/decor/_bolt.html" %}</div>
+  <div class="blackout weather-cast scare"></div>
+  <div class="in-dark eyes weather-cast scare" style="top:21%; left:8%; --decor-size:66px">{% include "ui/decor/_eyes.html" %}</div>
+  <div class="in-dark eyes weather-cast scare" style="top:63%; right:11%; --decor-size:52px">{% include "ui/decor/_eyes.html" %}</div>
+  <div class="in-dark eyes weather-cast scare" style="top:81%; left:46%; --decor-size:40px">{% include "ui/decor/_eyes.html" %}</div>
+  <div class="in-dark weather-cast scare" style="bottom:0; right:4%; --decor-size:300px">{% include "ui/decor/_looming.html" %}</div>
 </div>
 
 {% comment %}
