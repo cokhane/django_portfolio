@@ -716,6 +716,131 @@
     100%{transform:translateX(26px)  translateY(-14px)}
   }
 
+  /* ── FOUND FOOTAGE'S BAND (US-6.3) ───────────────────────────────────
+     The world for "someone who wants the cold version": a ceiling that
+     drips, a pool it collects in, two handprints on the glass, and a
+     tracking band that will not hold. Four rungs of US-6.1's ladder, and
+     the only world that renders any of them.
+
+     WORLD GATING IS ONE RULE, exactly as US-6.2's cast does it: every
+     element wears `horror-cast` and `:root:not(.horror)` withdraws the
+     lot. Arcade's root class is the empty string, so `:not()` is the only
+     form that reaches it. The gate is on the CAST, never on `#decor` --
+     the container must stay alive in the other worlds, because Manor's
+     creatures are rungs of the same ladder.
+
+     🚨 THE COLOUR IS A TOKEN READ BY THE ARTWORK, NOT BY A RULE. `--blood`
+     is declared in `.horror{}` where tokens live, and the only things that
+     read it are `fill=` and `stroke=` in the three `decor/` partials. That
+     is deliberate: `test_theme.py` reads a fallback-less `var(--x)` in a
+     BASE rule as a token every world must define, and this colour belongs
+     to one world. The mockup's four-world `--blood` table exists only
+     because the mockup bleeds everywhere; this story's scope is one world,
+     so it collapses to one value. Two alternatives were weighed and lost:
+     writing these rules inside the `.horror` section inverts the gate (the
+     elements would render unstyled in the other three worlds and need a
+     second rule each to hide them -- the per-element list US-6.2 forbids),
+     and `var(--blood,#4e0708)` makes the fallback the real colour and the
+     token a second name for it. If a later story adds `decor/` to
+     `PAGE_TEMPLATES`, that scan will start seeing this token: the fix then
+     is to define it in all four worlds, not to reach for the fallback.
+
+     NOTHING HERE REPEATS WHAT THE CONTAINER ALREADY SAYS. The mockup puts
+     `pointer-events:none` on all four elements and `aria-hidden` on the
+     band; `#decor` carries both and they inherit. REMOVE EFFECTS and Just
+     the Work are answered the same way -- `.no-motion #decor` and `.clean
+     #decor` already withdraw the lot, which is what "the blood goes
+     entirely, not just still" asks for, and is why containment matters
+     more here than any rule of this story's own.
+
+     REDUCED MOTION IS ABSENCE, settled by US-6.1 and followed by US-6.2:
+     the store reads the preference once and expresses it as the stillness
+     class. So the mockup's `@media (prefers-reduced-motion:reduce)` resting
+     opacities are deliberately NOT ported -- under `display:none` they
+     would style nothing, and the stylesheet carries no OS-preference query
+     at all by contract.
+
+     🚨 THE CLOCKS. The pool runs 11s, the hands 9s, the tape 7s, and each
+     droplet its own 9.1-15.7s -- none of them this layer's 72s cycle, and
+     no element here wears `crossing`. One honest correction to the story,
+     which asserts all of these are "independent of the 72s cycle": the
+     hands' `seep` is `alternate`, so its real period is 18s and 72 is
+     exactly four of them. It locks arithmetically. It cannot lock VISIBLY,
+     because every subscriber to the 72s clock is `manor-cast` (the beam
+     rides its parent saucer) and none of them renders in this world -- the
+     two casts never share a screen. The mockup's 9s is kept rather than
+     nudged off the factor, because changing a drawn value to satisfy a
+     ratio nothing can observe is the worse trade; US-6.4 adding a Found
+     Footage element on the shared clock is the day this stops being true.
+     ──────────────────────────────────────────────────────────────────── */
+  :root:not(.horror) .horror-cast{display:none}
+  /* The band's equivalent of `#drift svg`: one rule for the group, so no
+     element of it carries sizing of its own. Height is NOT set here --
+     the band and the pool each have their own, and a hand takes its from
+     its aspect ratio. */
+  .horror-cast svg{display:block; width:100%}
+
+  /* 🚨 AC 2, and it is GEOMETRY rather than stacking. Every rung of the
+     ladder outranks the nav (it sits inside `#page` at rank 1), so nothing
+     in the stacking order keeps blood off it -- only this offset does. The
+     script measures `--navh` and re-measures it when the nav wraps; 43px
+     is what the nav actually is in this world with the script dead
+     (`py-3` 24px + `.horror .display` at 1.5 x 12px + a 1px border), and
+     it is the AC 3 answer: a failed measurement hangs the band at the
+     nav's resting height, never at `top:0` across the brand. Written ONCE
+     and worn by both things that hang from the ceiling -- the handprint
+     that needs clearing further takes its extra drop from its own
+     `translateY`, so this number has exactly one home. */
+  .under-nav{top:var(--navh,43px)}
+
+  .blood{position:fixed; left:0; right:0; z-index:400; height:0}
+  .blood svg{height:calc(420px * var(--decor-scale,1));
+             filter:drop-shadow(0 2px 7px rgba(0,0,0,.75))}
+  /* 🚨 LONGHAND, for the reason the cast's block spells out: the mockup
+     writes `animation:fall linear infinite` and then overrides the
+     duration inline per droplet, which works only because an inline style
+     outranks the rule -- the shorthand has already declared
+     `animation-duration:0s` behind it. Here the rule names the PATH and
+     the per-droplet tempo is the only duration in play, inline as data on
+     all thirteen (AC 4). Uniform droplets read as a CSS demo; these read
+     as a ceiling. */
+  .bd{animation-name:fall; animation-timing-function:linear;
+      animation-iteration-count:infinite}
+  @keyframes fall{
+    0%  {transform:translateY(0)    scaleY(1);   opacity:0}
+    6%  {opacity:1}
+    84% {opacity:.9}
+    100%{transform:translateY(96vh) scaleY(2.3); opacity:0}
+  }
+
+  .pool{position:fixed; left:0; right:0; bottom:0; z-index:399;
+        animation:rise 11s ease-in-out infinite alternate}
+  .pool svg{height:calc(62px * var(--decor-scale,1));
+            filter:drop-shadow(0 -2px 10px rgba(0,0,0,.6))}
+  @keyframes rise{0%{transform:translateY(16px)}100%{transform:translateY(0)}}
+
+  /* Rung 26, the same one `#mist` takes. They never co-render -- mist is
+     Manor's and these are this world's -- so the shared number costs
+     nothing and keeps "things on the glass" one rung rather than two. */
+  .hand{position:fixed; z-index:26; opacity:.34;
+        width:calc(120px * var(--decor-scale,1));
+        animation:seep 9s ease-out infinite alternate}
+  @keyframes seep{0%{opacity:.16}100%{opacity:.42}}
+
+  /* The tape fault, rung 28 -- over the handprints so it reads as noise in
+     the recording rather than a smear behind the glass, under the blood
+     because the ceiling is not part of the recording. It crosses body text
+     at the mockup's opacity, which is the requester's call against A1: at
+     a 9% peak over this world's near-black the worst case measured is
+     --muted on a panel at 4.43:1, for a 70px strip, at its centre line,
+     for a fraction of each 7s sweep. If that is ever judged too much the
+     lever is the peak alpha, not the band's existence. */
+  .tracking{position:fixed; left:0; right:0; height:70px; z-index:28;
+            background:linear-gradient(180deg,transparent,
+              rgba(216,214,206,.05) 45%,rgba(216,214,206,.09) 50%,transparent);
+            animation:track 7s linear infinite}
+  @keyframes track{0%{top:-70px}100%{top:100%}}
+
   /* ── STILLNESS (US-5.5) ──────────────────────────────────────────────
      One class, one block, no per-animation list, so epic 6's unbuilt
      animations are covered already. `!important` because a universal
@@ -839,6 +964,11 @@
     --nav:rgba(8,9,10,.82);       /* derived: --void at Arcade's .82 */
     --line-hover:var(--line);     /* derived: this world is given no hover lift */
     --track:var(--panel);         /* derived: the mockup is silent on Horror's track */
+    /* US-6.3. Read by the `decor/` artwork's fill/stroke and by no CSS rule
+       at all -- the band belongs to this world alone, so the mockup's
+       four-world blood table collapses to this one value. The band block
+       in the base rules records why it is reached from markup. */
+    --blood:#4e0708;
   }
   .horror .display{font-family:'Special Elite',serif; letter-spacing:.04em; line-height:1.5}
   .horror .neon-text{color:#a82020; text-shadow:0 0 14px rgba(168,32,32,.55)}
@@ -1009,6 +1139,35 @@
     stacking context at `z-index:0` and mist belongs in FRONT of the work.
   {% endcomment %}
   <div id="mist" class="manor-cast"></div>
+
+  {% comment %}
+    ── FOUND FOOTAGE'S BAND (US-6.3) ─────────────────────────────────────
+    Five elements, every one of them DATA against rules written once in the
+    stylesheet: `horror-cast` is its world, `under-nav` is the one offset
+    that keeps blood off the nav bar, and a hand's place on the glass is
+    its own inline business.
+
+    OUTSIDE `#drift`, and that is structural rather than tidy. The stage is
+    a stacking context at `z-index:0`, so nothing inside it can ever paint
+    above the work at `1` -- a ceiling band that renders behind the
+    portfolio is not a ceiling band. These are SIBLINGS of the stage, each
+    on its own rung, which is also why US-6.1's `--decor-scale` had to move
+    up to the container before this story could use it.
+
+    🚨 NOT ONE of them wears `crossing`. The 72-second cycle is Manor's
+    cast; the band, the pool, the hands and the tape each keep their own
+    clock, so slots 56 and 63 stay free for whoever draws the stalkers.
+
+    The upper handprint takes its drop from `translateY` rather than from a
+    second `top`, so the nav's fallback height is written in exactly one
+    place in the sheet. Without the offset it would press itself onto the
+    brand -- rung 26 paints over the nav like every other rung.
+  {% endcomment %}
+  <div class="blood horror-cast under-nav">{% include "ui/decor/_blood_band.html" %}</div>
+  <div class="pool horror-cast">{% include "ui/decor/_pool.html" %}</div>
+  <div class="hand horror-cast" style="bottom:24px; right:30px; transform:rotate(14deg)">{% include "ui/decor/_hand.html" %}</div>
+  <div class="hand horror-cast under-nav" style="left:26px; transform:translateY(60px) rotate(-168deg) scale(.8)">{% include "ui/decor/_hand.html" %}</div>
+  <div class="tracking horror-cast"></div>
 </div>
 
 {% comment %}
@@ -1256,6 +1415,31 @@
   // ordering is why the visitor never sees either label flip.
   renderStillness();
   renderScares();
+
+  // US-6.3. The blood hangs from the bottom edge of the nav, and the nav's
+  // height is not a constant: it WRAPS at phone width, which is the case a
+  // single measurement at load would get wrong for the rest of the session.
+  // A ResizeObserver watches the element itself, so a wrap is caught whether
+  // or not the window changed; the resize listener is its FALLBACK, not a
+  // companion -- the mockup registers both and measures twice per drag.
+  // Only `home.html` has a nav: on the detail page and the 404 there is
+  // nothing to hang from and 0 is the right answer, which is a measurement
+  // and not a failure of one. The stylesheet's own 43px fallback is for the
+  // case where none of this runs at all, and is why `.under-nav` never
+  // resolves to `top:0`.
+  // Before the reveal, so the band's first paint is already at the measured
+  // height rather than jumping to it a frame later.
+  var nav = document.querySelector("nav");
+  function measureNav() {
+    document.documentElement.style.setProperty(
+      "--navh", (nav ? nav.offsetHeight : 0) + "px");
+  }
+  measureNav();
+  if (window.ResizeObserver && nav) {
+    new ResizeObserver(measureNav).observe(nav);
+  } else {
+    window.addEventListener("resize", measureNav);
+  }
 
   // The controls do nothing without this script, so this script reveals them.
   // The decoration is the opposite case -- it is pure CSS and would run

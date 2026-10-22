@@ -98,6 +98,10 @@ CAST = {"ghost": 2, "bat": 2, "witch": 1, "ufo": 1, "alien": 1, "pumpkin": 4}
 # gated by wearing it rather than by somebody remembering a rule.
 MANOR_CAST = "manor-cast"
 
+# US-6.3's equivalent, named here because this module's svg-sizing test counts
+# the layer's GROUP rules and there are now two groups on it.
+HORROR_CAST = "horror-cast"
+
 # US-5.6 built this as the ONE container every scare element lives in, and
 # `.no-scares .scare{display:none}` already withdraws it. The approaching
 # ghost joins that container rather than getting a rule of its own, so this
@@ -112,6 +116,20 @@ WORLD_GATE = f":root:not(.{MANOR}) .{MANOR_CAST}"
 # does not: its band, pool and hands each run their own clock. In the mockup
 # the two slots belong to Found Footage's stalkers, which no story has claimed.
 CROSSING = "crossing"
+
+# An element that is DATA against a shared rule: it carries both a class list
+# and an inline style. Matched so the crossing-timer test below can ask the
+# question it is actually named for -- "does a CROSSING carry its own
+# duration" -- rather than "does the layer contain the string anywhere",
+# which was the same question only while every animated element on the layer
+# was a crossing. US-6.3's droplets each carry their own tempo BY DESIGN.
+#
+# ORDER-DEPENDENT: `class` must precede `style`, which is how every element in
+# this layer is written. That is a real limitation rather than an oversight,
+# and the caller pays for it by pinning the COUNT of what it matches against
+# `DELAYS` -- an element written the other way round drops the count and fails
+# there, which a bare "did we match anything" guard would not have caught.
+STYLED_TAG = re.compile(r'<\w+ class="([^"]*)" style="([^"]*)"')
 DELAYS = ("0s", "-14s", "-21s", "-28s", "-35s", "-42s", "-49s", "-49s")
 
 # The articulated parts and the pin each rotates about, in the SVG's own
@@ -194,10 +212,13 @@ def _crossing_names(layer):
     """Every creature class worn by something that takes the shared clock.
 
     DERIVED from the rendered layer rather than listed, and the difference is
-    the whole value: US-6.3 adds a Found Footage cast to this same stage, and
-    a hand-kept tuple would leave each of its crossings unguarded by the test
-    that claims to guard the cycle -- silently, and in a story that cannot
-    fail yet. Anything wearing `crossing` is covered the day it is written.
+    the whole value: a hand-kept tuple would leave the NEXT crossing unguarded
+    by the test that claims to guard the cycle -- silently, and in a story
+    that cannot fail yet. Anything wearing `crossing` is covered the day it is
+    written, whether that is US-6.4's weather or whoever finally draws the
+    stalkers the mockup leaves in slots 56 and 63. (US-6.3 was expected to be
+    that story and was not: Found Footage's band runs its own clocks and puts
+    nothing on this one.)
 
     Scanned over the whole layer, not just the stage's direct children: the
     saucer's beam is a GRANDCHILD, and it takes the clock too.
@@ -587,7 +608,7 @@ class ManorCastMarkupTests(SimpleTestCase):
         The cast size was a question the story asked out loud -- nine is the
         plan's number, a smaller cut was explicitly allowed -- and the answer
         is bound to the stagger: Manor holds seven of the mockup's nine delay
-        slots and leaves two for US-6.3. A creature added without a slot
+        slots and leaves two free. A creature added without a slot
         reads as clutter and a creature dropped leaves the stage bare, and
         neither shows up in a test that only asks "is there a bat".
         """
@@ -611,10 +632,32 @@ class ManorCastMarkupTests(SimpleTestCase):
         already pins the stylesheet half. Between them the number has exactly
         one home. The delay is the opposite case and stays inline: eight
         different values cannot be one rule.
+
+        Scoped to elements wearing `crossing`, which is what the name has
+        always meant. A blanket scan for the string over the whole layer said
+        the same thing only while every animated element on it was a
+        crossing; US-6.3's thirteen droplets each carry their OWN duration as
+        data, which is that story's AC 4 rather than a regression of this
+        one. The 72s literal is still banned from the markup outright -- no
+        element of any world has a reason to write it.
+
+        Counted against `DELAYS` rather than merely proved non-empty, and that
+        is what makes the narrowing safe. `STYLED_TAG` reads `class` before
+        `style`, so a crossing written with its attributes the other way round
+        matches nothing -- and a guard that only asked "did we match at least
+        one" would pass on seven of eight while the eighth went unexamined.
+        Pinning the count means a crossing the regex cannot see fails here
+        instead of slipping through, which is the property the blanket scan
+        had for free and a narrowed one has to buy.
         """
         layer = self._layer()
+        crossings = [style for classes, style in STYLED_TAG.findall(layer)
+                     if CROSSING in classes.split()]
 
-        self.assertNotIn("animation-duration", layer)
+        self.assertEqual(len(crossings), len(DELAYS))
+        for style in crossings:
+            with self.subTest(style=style):
+                self.assertNotIn("animation-duration", style)
         self.assertNotIn(DURATION, layer)
 
     def test_every_crossing_takes_a_slot_on_the_shared_clock(self, *_mocks):
@@ -807,8 +850,9 @@ class ManorCastStylesheetTests(SimpleTestCase):
         claim testable rather than merely stated.
 
         The creatures are DERIVED from the markup, not listed: whatever wears
-        `crossing` is checked, so US-6.3's cast inherits this guard without
-        anybody remembering to extend a tuple. Only a creature's OWN rule is
+        `crossing` is checked, so the next story to put something on the
+        shared clock inherits this guard without anybody remembering to
+        extend a tuple. Only a creature's OWN rule is
         read -- `.bat .wing` beats at .26s with the shorthand, legitimately,
         because a part is not on the shared clock.
         """
@@ -847,9 +891,9 @@ class ManorCastStylesheetTests(SimpleTestCase):
         """AC 10: the duplication rule, asked of the whole sheet at once.
 
         Derived rather than listed. A hand-written list of the names this
-        story happens to add can only check itself -- US-6.3 adds its own
-        cast next, and the cheapest way to build it is to copy a crossing
-        and rename half of it. This fails on the copy, whoever writes it.
+        story happens to add can only check itself -- the cheapest way to
+        build the next crossing is to copy one of these and rename half of
+        it. This fails on the copy, whoever writes it.
 
         The crossings themselves are NOT duplicates and are not treated as
         any: `haunt` stutters and vanishes, `flit` darts, `fly` arcs,
@@ -872,7 +916,11 @@ class ManorCastStylesheetTests(SimpleTestCase):
         Scoped to `#drift`, which keeps the 0x0 `wisp` defs SVG out of it --
         that one is a definition rather than a creature, and it is a sibling
         of the stage precisely so that geometry meant for artwork never
-        reaches it.
+        reaches it. US-6.3's band could not share that rule for the same
+        reason: its elements are siblings of the stage too, so they carry a
+        second GROUP rule of their own. Two groups, two rules -- what stays
+        banned is a rule naming one element, which is the list this test is
+        named after.
 
         Asserted in BOTH directions, the second DERIVED: every rule in the
         sheet that sizes an SVG is collected, and the shared one must be the
@@ -892,7 +940,7 @@ class ManorCastStylesheetTests(SimpleTestCase):
                 self.assertIn(declaration, shared)
         sized = [selector.strip() for selector, block in CSS_RULE.findall(css)
                  if "width:100%" in block and selector.strip().endswith("svg")]
-        self.assertEqual(sized, [f"#{STAGE_ID} svg"])
+        self.assertEqual(sized, [f"#{STAGE_ID} svg", f".{HORROR_CAST} svg"])
 
     def test_the_phone_widths_drop_the_filters_as_well_as_the_pixels(self, *_mocks):
         """AC 8: what actually costs a weak GPU on this layer.
