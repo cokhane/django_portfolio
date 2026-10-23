@@ -381,7 +381,7 @@
   .sw-clean-1{background:#0e1014} .sw-clean-2{background:#5b9dd9} .sw-clean-3{background:#6fb6a8} .sw-clean-4{background:#e8eaed}
   .ch-name-manor{color:#ffd9a0}
   .sw-manor-1{background:#0b0a14} .sw-manor-2{background:#ffb95e} .sw-manor-3{background:#9fd8e8} .sw-manor-4{background:#a3242b}
-  .ch-name-horror{color:#a82020}
+  .ch-name-horror{color:#d4705f}   /* US-7.1: mirrors .horror's --lit; was #a82020 at 2.40:1 */
   .sw-horror-1{background:#08090a} .sw-horror-2{background:#8b1a1a} .sw-horror-3{background:#c9b99a} .sw-horror-4{background:#6f8f6a}
   .ch-name-arcade{color:#ffc83d}
   .sw-arcade-1{background:#07070a} .sw-arcade-2{background:#ff2d55} .sw-arcade-3{background:#ffc83d} .sw-arcade-4{background:#22d3ee}
@@ -1241,9 +1241,18 @@
        four-world blood table collapses to this one value. The band block
        in the base rules records why it is reached from markup. */
     --blood:#4e0708;
+    /* US-7.1 (F7). Found Footage's legible accent, the counterpart to
+       Manor's --lit. `.neon-text` cannot read --neon here: this world's
+       #8b1a1a measures 2.15:1 on --void, and the #a82020 literal that
+       stood in its place measured 2.74:1 -- both under AA-large's 3.0,
+       and this class paints 12px nav text. #d4705f is the same dried
+       blood lifted to 5.96:1 on --void and 5.57:1 on --panel. The
+       chooser's `.ch-name-horror` mirrors the value as a literal, because
+       it renders outside this world and cannot read this token. */
+    --lit:#d4705f;
   }
   .horror .display{font-family:'Special Elite',serif; letter-spacing:.04em; line-height:1.5}
-  .horror .neon-text{color:#a82020; text-shadow:0 0 14px rgba(168,32,32,.55)}
+  .horror .neon-text{color:var(--lit); text-shadow:0 0 14px rgba(212,112,95,.55)}
   .horror .gold-text{color:var(--gold); text-shadow:0 0 10px rgba(201,185,154,.25)}
   .horror .ice-text{color:#7fa877}
   .horror .hud{background:linear-gradient(160deg,rgba(17,19,20,.95),rgba(8,9,10,.95))}
