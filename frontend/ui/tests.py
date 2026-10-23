@@ -2,6 +2,7 @@
 
 import re
 from datetime import date, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 import httpx
@@ -800,3 +801,43 @@ class ProjectDetailViewTests(SimpleTestCase):
         response = self.client.get(self.url)
 
         self.assertContains(response, "Press+Start+2P", status_code=404)
+
+
+class BorderColourAsTextTests(SimpleTestCase):
+    """F7: `--line` is a border colour, and a border colour cannot be read.
+
+    The two instances this guards measured 1.24:1 to 1.47:1 across the four
+    worlds -- below the ratio at which text is visible at all, not merely
+    hard to read. The edits that fixed them are one token each and would be
+    trivial to undo by hand or by a bad merge, so the story asked for this
+    guard ahead of the edits themselves.
+    """
+
+    TEMPLATES = Path(__file__).resolve().parent / "templates"
+
+    # `(?<!-)` is what keeps `border-color:var(--line)` legal: a border IS
+    # what this token is for, and every CSS property that legitimately takes
+    # it ends in `-color`. Whitespace is tolerated so a formatter reflowing
+    # `color: var( --line )` cannot smuggle the defect back past the guard.
+    LINE_AS_COLOUR = re.compile(r"(?<!-)color:\s*var\(\s*--line\s*\)")
+
+    def test_no_template_paints_text_with_the_border_token(self):
+        """The audit from the story, run as a test rather than by hand."""
+        templates = sorted(self.TEMPLATES.rglob("*.html"))
+
+        offenders = [
+            f"{path.relative_to(self.TEMPLATES)}:{number}"
+            for path in templates
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+            if self.LINE_AS_COLOUR.search(line)
+        ]
+
+        # A guard that scans nothing passes for the wrong reason, which is the
+        # one failure mode a grep-shaped test cannot report on its own.
+        self.assertGreater(len(templates), 1, f"no templates found under {self.TEMPLATES}")
+        self.assertEqual(
+            offenders,
+            [],
+            "--line is a border colour; use --muted for text. Offending lines: "
+            + ", ".join(offenders),
+        )
