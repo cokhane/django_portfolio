@@ -130,6 +130,9 @@ would have hidden it rather than fixed it.
 
 ## Static files
 
+Two committed assets live under `frontend/ui/static/ui/`: the CV, and
+`tailwind.css` — the compiled stylesheet described in the next section.
+
 The CV lives at `frontend/ui/static/ui/cv.pdf` and is linked from the
 hire-me panel with `{% static %}`, so it resolves to `/static/ui/cv.pdf`.
 It is found by `django.contrib.staticfiles`' app-directory discovery —
@@ -144,11 +147,75 @@ and the frontend sets no `STATIC_ROOT` yet, so that is the first thing a
 deployment needs. How the site is deployed is still an open question, so
 nothing here assumes an answer.
 
+## Regenerating the stylesheet
+
+`frontend/ui/static/ui/tailwind.css` is a **generated file, committed on
+purpose, never hand-edited**. It replaced an unversioned, development-only
+CDN script — 407 KB of third-party JavaScript with full access to the page
+and no integrity hash possible — with the 17 KB of CSS that script was
+producing.
+
+Run this from `django_portfolio/` after changing any `class="…"` in a
+template:
+
+```bash
+{ sed -n '1,/^ \*\//p' frontend/ui/static/ui/tailwind.css; printf '\n'
+  npx -y tailwindcss@3.4.17 --content 'frontend/**/*.html'
+  printf '\n'
+} > /tmp/tailwind.css && mv /tmp/tailwind.css frontend/ui/static/ui/tailwind.css
+```
+
+The first line re-emits the file's own provenance header — matched up to
+its closing `*/` rather than by a line count, so editing the header cannot
+silently truncate it — and the second regenerates the rules. **The version is pinned deliberately** — an
+unversioned build is the defect this replaced, so an upgrade should be a
+visible change to that number and to `SHEET_VERSION` in
+`ui/test_stylesheet.py`. Node is used only here, on the author's machine:
+nothing Node-shaped is committed, there is no `package.json`, no lockfile
+and no CI step, and the repository stays Python. Where Node is unavailable,
+Tailwind's standalone CLI binary at the same version produces the same file.
+The command reads only local templates and needs **no secret, token or
+credential** (NFR-3).
+
+**You do not have to remember to run it.** `ui/test_stylesheet.py` fails,
+naming the offending class, whenever a class the page applies has no rule in
+either the inline `<style>` block in `base.html` or this file. That covers
+the two ways a generated stylesheet silently stops matching its markup: a
+template the scan never read, and a class applied only from JavaScript —
+which the generator cannot see, because it reads `class="…"` out of the
+templates.
+
+The JavaScript half needs two mechanisms, because one cannot reach all of
+it. `classList.toggle("no-motion")` writes the name down, so the test reads
+it out of the script text. `classList.add(worlds[name])` and
+`classList.add(STRUCK)` do not, and no amount of scanning recovers a string
+that is never written — so those four (`manor`, `horror`, `clean`,
+`struck`) are listed by name in `COMPUTED_SCRIPT_CLASSES` and asserted
+individually. A derived check that silently skipped them would have been
+worse than a list that admits what it is.
+
+**One deliberate overlap.** The sheet carries Tailwind's preflight, which
+restates a few rules the inline `<style>` block already had — `box-sizing`,
+`body{margin:0}`, `a{color:inherit}` and two `[hidden]` rules. They set the
+same values, so the cascade is unchanged, and they were left in place
+because this change's contract was that nothing visual may change. Retiring
+them is a follow-up with its own before-and-after comparison.
+
+Two details worth knowing before reading the file. It is **unminified**, so
+it diffs — a reviewer can see what a regeneration changed, which is the
+whole point of committing it. And it carries about 21 single-declaration
+rules for classes nothing uses (`container`, `table`, `ring`, `filter`…):
+Tailwind's scanner matches bare words in prose and CSS, not just class
+attributes, so it invents them. They cost under 1 KB and collide with
+nothing. Suppressing them would mean adding a `tailwind.config.js` — a
+JavaScript file in a Python repository, to silence under 1 KB of dead CSS.
+
 ## Deploying
 
 The backend's WSGI entry point expects its own directory as the working dir,
 e.g. `gunicorn --chdir backend mysite.wsgi`. Static files are served by the
 web server from `STATIC_ROOT` after `manage.py collectstatic` — nothing in
-the app serves them. The frontend's Tailwind CDN build is development-only
-by Tailwind's own docs; compile a stylesheet before treating this as
-production.
+the app serves them — including `tailwind.css`, which is an ordinary
+committed static file like the CV and needs no build step at deploy time.
+If minified CSS is wanted, that belongs to whatever serves static files,
+not to the repository.
