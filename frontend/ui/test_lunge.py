@@ -102,18 +102,28 @@ IN_DARK = re.compile(r'class="in-dark ')
 CLASS_ATTR = re.compile(r'class="([^"]*)"')
 
 
-def _function_body(script, name):
-    """The body of `function <name>() {...}` from the tail script.
+def _function_body(script, name, indent="  "):
+    """The body of `function <name>(...) {...}` from an owned inline script.
 
     The `SET_SCARES` shape in `test_scares.py`, generalised over the name:
     anchored on the closing brace at the function's OWN indentation, which is
     two spaces inside the IIFE. A non-greedy run to the first `}` would stop
     at the first guard clause instead -- and every function this module slices
     is guard-then-act, so that is not a hypothetical.
+
+    US-6.6 widened it twice rather than writing a third copy beside the two
+    this already replaced. The ARGUMENT LIST is now matched rather than
+    assumed empty: the side quest slices `onKeydown(event)` and `hits(o)`,
+    and a helper that can only find `name()` would have forced a parallel
+    regex whose two spellings could then disagree. And `indent` is a
+    parameter because that script is nested one level deeper -- it lives
+    inside `home.html`'s content block, so its functions sit at four spaces
+    rather than two. Both defaults are the old behaviour, so every caller
+    above is untouched.
     """
-    opening = f"  function {name}() {{"
-    start = script.index(opening) + len(opening)
-    return script[start:script.index("\n  }", start)]
+    opening = re.search(rf"^{indent}function {name}\([^)]*\) \{{$", script, re.M)
+    assert opening is not None, f"no function {name!r} at this indentation"
+    return script[opening.end():script.index(f"\n{indent}}}", opening.end())]
 
 
 @patch("ui.views.fetch_availability", return_value=AVAILABILITY)
