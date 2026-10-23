@@ -420,6 +420,65 @@
     .ch-desc{min-height:0; margin-bottom:11px}
   }
 
+  /* ── THE SIDE QUEST (US-6.6) ──────────────────────────────────────────
+     BRD A16, both halves: there IS something to play, and it is still only
+     a side quest. The band sits in `#page`'s normal flow below the hero's
+     copy and its two buttons, so a client reads the positioning and reaches
+     VIEW PROJECTS without the strip ever asking for anything. It adds NO
+     RUNG to the ladder -- it is content at `z-index:1`, not an overlay, and
+     the comment at THE LADDER above stays a list of nine.
+
+     🚨 THE GATE NAMES THREE WORLDS RATHER THAN NEGATING ONE, and that is
+     forced rather than chosen. Every other cast in this sheet is withdrawn
+     by its complement -- `:root:not(.manor) .manor-cast` -- but Arcade's
+     root class is the EMPTY STRING (`ROOT_CLASSES`), so there is no class
+     to `:not()`. The complement has to be written out, and a fifth world
+     would need adding here; `test_side_quest.py` derives the expected
+     selector from `ROOT_CLASSES` so that day fails loudly rather than
+     leaving a skater in a world that never asked for one.
+
+     `display:none` and not `visibility:hidden`, for the reason Just the
+     Work withdraws the scares switch the same way: the canvas is the ONE
+     focusable thing epic 6 adds, and a merely invisible one would still be
+     a tab stop and still be announced. Gone means gone from the Tab order
+     and the accessibility tree.
+
+     The band ships in EVERY world and is withdrawn HERE, never by a
+     template `{% templatetag openblock %} if {% templatetag closeblock %}`
+     -- F-18's identical-bodies test reads the rendered bytes, and the
+     chooser swaps worlds with no page load, so only the stylesheet can
+     answer in time.
+
+     NO `.no-motion` RULE. A `requestAnimationFrame` loop is script and only
+     script can cancel it, so the switch is asked by the game, on every
+     frame; US-5.5's single licence to this sheet is spent on `#decor` and
+     the count stays three. Nothing here animates, so there is nothing for
+     stillness to still.
+
+     The focus ring is `:focus-visible` in CSS rather than the mockup's
+     `focus`/`blur` listeners painting a `boxShadow` -- US-5.4's CORRECTION
+     3 settled that, and the mockup's `outline:none` is dropped with them.
+     `touch-action:none` so the first tap is a jump rather than the start of
+     a scroll gesture the browser is still deciding about.
+     ──────────────────────────────────────────────────────────────────── */
+  .manor .arcade-cast,.horror .arcade-cast,.clean .arcade-cast{display:none}
+  /* The two chrome rows. `:first-child` carries its line BELOW it and the
+     others above, so the band reads as one panel however many rows it
+     grows -- the mockup spells `border-bottom` and `border-top` on two
+     hand-placed divs instead. */
+  .sk-bar{display:flex; justify-content:space-between; align-items:center; gap:10px;
+          padding:9px 14px; border-top:1px solid var(--line)}
+  .sk-bar:first-child{border-top:0; border-bottom:1px solid var(--line)}
+  /* THE ONE DECLARATION OF THE CANVAS'S SIZE. The element carries no `width`
+     or `height` attribute: the script reads both back off the laid-out box
+     and syncs the drawing buffer to them, so the mockup's 1100x190 is not
+     repeated in three places that can disagree. A 190px strip is a
+     comfortable tap target at every width, and the world is NOT scaled down
+     with the viewport -- a narrow screen is a shorter view of the same run,
+     so a cone stays 16px wide and legible at 320px (F-13, AC 9). */
+  #sk-canvas{display:block; width:100%; height:190px; cursor:pointer; touch-action:none}
+  #sk-canvas:focus-visible{outline:2px solid var(--ember); outline-offset:2px}
+
   /* ── THE DECORATION LAYER (US-6.1) ────────────────────────────────────
      The stage, not the cast. 6.2 and 6.3 put creatures on it; 6.4 adds
      weather and 6.5 a scare beside them. Two elements, and the split IS the

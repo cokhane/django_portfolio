@@ -32,6 +32,451 @@
     <a href="#contact" class="btn">✉ CONTACT</a>
   </div>
 
+  {% comment %}
+    ── THE SIDE QUEST (US-6.6) ───────────────────────────────────────────
+    BRD A16 was reversed to let one game in, with one limit attached: a
+    side quest, never a gate. Both halves are structural here rather than
+    promised. The game exists -- it is playable, it keeps score and it can
+    be lost. And it is only a side quest, because it sits BELOW the hero's
+    copy and its two buttons: a client reads the positioning, presses VIEW
+    PROJECTS, and never touches this. Nothing anywhere on the site is
+    reachable only by playing it, and nothing it does is required to leave
+    it.
+
+    🚨 RENDERED `hidden`, REVEALED BY ITS OWN SCRIPT -- the `#decor` and
+    `#site-controls` contract, and here it is the difference between a
+    visitor with JavaScript off seeing nothing and seeing a dead 190px
+    strip under an instruction line telling them to press a key that does
+    nothing. The second is worse than no game at all (A1).
+
+    It ships in all four worlds and the STYLESHEET withdraws it from three
+    (`arcade-cast`). Not a condition in this template: F-18's test compares
+    the rendered bytes of two worlds, and the chooser swaps worlds with no
+    page load, so a server-side `if` would be both a byte difference and an
+    answer that arrives too late.
+
+    ONE `tabindex`, NO `<button>`, NO `<a>`. The canvas is the single
+    focusable thing epic 6 adds anywhere, and it is an exception NFR-8
+    grants by necessity -- a game cannot be played without a tab stop. The
+    cost to a keyboard visitor is therefore exactly one press to step over
+    it, which is why the mockup's RESET button is not ported: it would
+    double that cost for a job Space and a tap already do after a wipeout.
+    The accessible name says what the thing is AND that Tab moves on, which
+    is the honest answer for a canvas with no readable content inside it.
+
+    The score is not `aria-live`: it changes on every frame of a run and
+    would turn a screen reader into a metronome.
+  {% endcomment %}
+  <div id="side-quest" class="hud arcade-cast mt-10 max-w-3xl" hidden>
+    <div class="sk-bar">
+      <span class="display" style="font-size:9px;color:var(--muted)">SIDE QUEST</span>
+      <span class="display gold-text" id="sk-score" style="font-size:9px">0 M</span>
+    </div>
+    <canvas id="sk-canvas" tabindex="0"
+            aria-label="Skateboard mini-game. Press Space or tap to jump; Tab moves on."></canvas>
+    <div class="sk-bar">
+      <span class="text-xs" style="color:var(--muted)">
+        <span class="tag">SPACE</span> jump &nbsp; <span class="tag">TAP</span> jump
+      </span>
+    </div>
+  </div>
+
+  {% comment %}
+    The game. In `home.html` rather than beside the other two scripts in
+    `base.html`, because the band is home-only and this is the band's: the
+    detail page and the 404 would otherwise carry a hundred lines that
+    cannot find their canvas. It needs no `DOMContentLoaded` -- the markup
+    it reads is directly above it.
+
+    THE LOOP EXISTS ONLY BETWEEN A FIRST JUMP AND A WIPEOUT. The mockup
+    schedules a frame forever from page load, in every world, whether
+    anyone is playing or not. That is sixty frames a second of battery and
+    paint for the overwhelming majority of visitors who never look at it --
+    on a portfolio, where the game is the least important thing on the
+    page. Idle is ONE painted frame; a wipeout ends the loop by itself.
+
+    🚨 AND EVERY FRAME RE-ASKS. `allowed()` is the whole contract US-5.5
+    wrote: no stylesheet can stop a `requestAnimationFrame`, so the script
+    must, and the switch is reachable at rung 490 WHILE a run is in flight
+    (F-17). A visitor who presses REMOVE EFFECTS mid-run is answered on the
+    very next frame: that frame paints the reason and does not schedule
+    another, which is how a self-rescheduling loop ends. It is stopped, not
+    left running invisibly -- measured rather than asserted, in the story's
+    Q3.
+
+    It asks the STYLESHEET which worlds show the band rather than listing
+    them here (US-6.5's `faceWouldShow` idiom): `getClientRects()` is empty
+    under `display:none`, so the gate rule, Just the Work and a live swap
+    away from Arcade are all answered by one question that cannot drift
+    from the sheet.
+
+    It touches NO storage -- the high score does not persist, deliberately
+    (the story's Q1) -- no `matchMedia` (the OS preference is the store's
+    job and reaches here as `effects()`), and nothing on the root element.
+  {% endcomment %}
+  <script>
+  (function () {
+    "use strict";
+
+    var cvs = document.getElementById("sk-canvas");
+    var band = document.getElementById("side-quest");
+    var scoreEl = document.getElementById("sk-score");
+    var ctx = cvs.getContext("2d");
+
+    // The mockup's feel. Named here are the values read in MORE THAN ONE
+    // place, or that a reader changing how the game plays would go looking
+    // for; the rest of the tuning sits inline at its single use, where a
+    // constant would only be a second name for one number. None of it is
+    // contract -- no test asserts any of these, because what they encode is
+    // how a jump lands.
+    var GROUND_GAP = 42;      // roadway below the line -- the mockup's 190-148
+    var LEAD = 0.11;          // the skater's place across the strip (120 of 1100)
+    var GRAVITY = 0.62, LIFT = -12.4;
+    var SPEED_MIN = 5.4, SPEED_MAX = 12.5, SPEED_GAIN = 0.012;
+    var DASH = 40, OFF_SCREEN = -30, SPAWN_CHANCE = 0.25, HORIZON = 40;
+    var BANNER_ALPHA = 0.74, GLOW_ALPHA = 0.1, SKYLINE = 26;
+
+    // Read from the page, never spelled here: the stylesheet is the one
+    // definition of a world's palette, and a copy of it in script would be
+    // the "stayed Arcade in every world" defect the tokens were promoted to
+    // fix. The mockup hardcodes twelve of these.
+    var TOKENS = ["neon", "ember", "gold", "ice", "muted", "line", "text",
+                  "void", "panel", "line-hover"];
+
+    // Each kind's size AND how to draw it, in ONE table. The mockup keeps
+    // the sizes in `spawn()` and the drawing in a three-arm branch inside
+    // `paint()`, which is two lists keyed by the same three strings -- so a
+    // fourth kind is two edits and a drift is a crash. Here the painter
+    // travels with the obstacle and there are no keys at all.
+    var KINDS = [
+      {w: 16, h: 26, paint: paintCone},
+      {w: 30, h: 16, paint: paintRail},
+      {w: 20, h: 34, paint: paintBox}
+    ];
+
+    var W, H, GROUND, palette;
+    var skater, obstacles, speed, dist, over, started, groundShift, frame;
+
+    // THE one question, asked before a run starts and on every frame of it.
+    // Two halves: the switch (REMOVE EFFECTS and the OS preference, already
+    // collapsed into one answer by the store) and the stylesheet's verdict
+    // on this world.
+    function allowed() {
+      return window.axePrefs.effects() && cvs.getClientRects().length > 0;
+    }
+
+    function readPalette() {
+      var style = window.getComputedStyle(document.documentElement);
+      var read = {};
+      TOKENS.forEach(function (name) {
+        read[name] = style.getPropertyValue("--" + name).trim();
+      });
+      return read;
+    }
+
+    // Sync the drawing buffer to the laid-out box. A band the gate is
+    // holding at `display:none` has no box to measure, so leave the buffer
+    // alone and say so rather than resizing it to nothing.
+    function fit() {
+      if (!cvs.clientWidth) { return false; }
+      W = cvs.clientWidth;
+      H = cvs.clientHeight;
+      cvs.width = W;          // assigning either dimension clears the canvas
+      cvs.height = H;
+      GROUND = H - GROUND_GAP;
+      return true;
+    }
+
+    function reset() {
+      // No height: the collision test reduces to "is the skater below the
+      // obstacle's top", so a stored height would be a field nothing reads.
+      skater = {x: Math.round(W * LEAD), y: GROUND, vy: 0, w: 34,
+                onGround: true, rot: 0};
+      obstacles = [];
+      speed = SPEED_MIN; dist = 0; over = false; started = false;
+      groundShift = 0; frame = 0;
+      showScore();
+    }
+
+    // ONE definition of what a distance looks like, read by the idle state
+    // and by every frame of a run.
+    function showScore() {
+      scoreEl.textContent = Math.floor(dist) + " M";
+    }
+
+    // No measuring here: `refit` owns that and has already run by the time
+    // anything can reach this -- `allowed()` is false until the band has a
+    // box, and the observer fires the moment it gets one.
+    function start() {
+      reset();
+      started = true;
+      window.requestAnimationFrame(tick);
+    }
+
+    // Effects off: paint the reason rather than starting a run that cannot
+    // move. A first press and a press after a wipeout BOTH start a run and
+    // jump in it -- the mockup's behaviour, and the one that makes the
+    // banner feel like a start button rather than a dialog to dismiss.
+    function jump() {
+      if (!allowed()) { paint(); return; }
+      if (over || !started) { start(); }
+      if (!skater.onGround) { return; }
+      skater.vy = LIFT;
+      skater.onGround = false;
+    }
+
+    function spawn() {
+      var kind = KINDS[Math.floor(Math.random() * KINDS.length)];
+      obstacles.push({x: W + 20, w: kind.w, h: kind.h, paint: kind.paint});
+    }
+
+    function advance() {
+      dist += speed * 0.08;
+      speed = Math.min(SPEED_MAX, SPEED_MIN + dist * SPEED_GAIN);
+      groundShift = (groundShift + speed) % DASH;
+      skater.vy += GRAVITY;
+      skater.y += skater.vy;
+      if (skater.y >= GROUND) {
+        skater.y = GROUND; skater.vy = 0; skater.onGround = true;
+      }
+      skater.rot = skater.onGround
+        ? 0
+        : Math.max(-0.5, Math.min(0.5, skater.vy * 0.035));
+    }
+
+    function maybeSpawn() {
+      frame += 1;
+      var gap = Math.round(Math.max(52, 110 - speed * 4));
+      if (frame % gap === 0 && Math.random() > SPAWN_CHANCE) { spawn(); }
+    }
+
+    // The skater's box, inset the way the mockup insets it -- a pixel
+    // sprite that touches a cone by its shoulder has not hit it.
+    function hits(o) {
+      var sx = skater.x - skater.w / 2 + 6;
+      var sw = skater.w - 12;
+      return sx < o.x + o.w && sx + sw > o.x && skater.y > GROUND - o.h;
+    }
+
+    function onScreen(o) {
+      return o.x + o.w >= OFF_SCREEN;
+    }
+
+    // Shift, then test, then drop. The mockup does all three in one reverse
+    // loop; a collision detected inside `filter`'s predicate would be a side
+    // effect hidden in a pure selection.
+    function moveObstacles() {
+      obstacles.forEach(function (o) { o.x -= speed; });
+      over = over || obstacles.some(hits);
+      obstacles = obstacles.filter(onScreen);
+    }
+
+    // 🚨 A LOOP THAT DOES NOT RESCHEDULE ITSELF HAS STOPPED. There is no
+    // `cancelAnimationFrame` here and there is nothing for one to cancel:
+    // both exits run INSIDE the frame they end, so the only id there is to
+    // cancel is the one currently executing. A run begins only from a state
+    // where the loop has already ended, so a second frame can never be
+    // pending either. Simply returning is the whole mechanism.
+    //
+    // 🚨 THE FIRST EXIT ABANDONS THE RUN, IT DOES NOT PAUSE IT, and that is
+    // what leaves the game playable afterwards. Ending the loop while
+    // `started` stayed true would strand it in a state nothing can leave --
+    // no frame is pending, and `jump()` starts a run only when it is over or
+    // has not begun, so every later press would set a velocity on a skater
+    // no frame will ever read, for the life of the page. Clearing it means
+    // the first press after RESTORE EFFECTS opens a fresh run, which is the
+    // honest reading too: a visitor who asked for stillness mid-run did not
+    // ask to be put back where they were.
+    function tick() {
+      if (!allowed()) { started = false; paint(); return; }
+      advance();
+      maybeSpawn();
+      moveObstacles();
+      showScore();
+      paint();
+      if (over) { return; }
+      window.requestAnimationFrame(tick);
+    }
+
+    function paintSky() {
+      // `transparent` is a keyword rather than a colour, so the horizon
+      // still fades to nothing without this script naming an `rgba()`.
+      var glow = ctx.createLinearGradient(0, HORIZON, 0, GROUND);
+      glow.addColorStop(0, "transparent");
+      glow.addColorStop(1, palette.ember);
+      ctx.globalAlpha = GLOW_ALPHA;
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, HORIZON, W, GROUND - HORIZON);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = palette.panel;
+      for (var b = 0; b < SKYLINE; b += 1) {
+        var tall = 18 + ((b * 37) % 44);
+        var at = ((b * 90) - (groundShift * 0.25)) % (W + 120) - 60;
+        ctx.fillRect(at, GROUND - tall, 54, tall);
+      }
+    }
+
+    function paintGround() {
+      ctx.strokeStyle = palette.line;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, GROUND + 1);
+      ctx.lineTo(W, GROUND + 1);
+      ctx.stroke();
+      ctx.fillStyle = palette["line-hover"];
+      for (var d = -DASH; d < W + DASH; d += DASH) {
+        ctx.fillRect(d - groundShift, GROUND + 11, 18, 2);
+      }
+    }
+
+    function paintCone(o, top) {
+      ctx.fillStyle = palette.ember;
+      ctx.beginPath();
+      ctx.moveTo(o.x + o.w / 2, top);
+      ctx.lineTo(o.x + o.w, GROUND);
+      ctx.lineTo(o.x, GROUND);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = palette.gold;
+      ctx.fillRect(o.x + 3, top + o.h * 0.55, o.w - 6, 4);
+    }
+
+    function paintRail(o, top) {
+      ctx.fillStyle = palette.ice;
+      ctx.fillRect(o.x, top, o.w, 5);
+      ctx.fillStyle = palette.muted;
+      ctx.fillRect(o.x + 2, top + 5, 4, o.h - 5);
+      ctx.fillRect(o.x + o.w - 6, top + 5, 4, o.h - 5);
+    }
+
+    function paintBox(o, top) {
+      ctx.fillStyle = palette.neon;
+      ctx.fillRect(o.x, top, o.w, o.h);
+      ctx.fillStyle = palette.void;
+      ctx.fillRect(o.x + 4, top + 6, o.w - 8, 4);
+    }
+
+    // Both halves draw about the origin, so the caller owns the translate
+    // and the rotation and neither of these knows where the skater is.
+    function paintBoard() {
+      ctx.fillStyle = palette.gold;
+      ctx.fillRect(-18, -5, 36, 5);                    // deck
+      ctx.fillStyle = palette.muted;
+      ctx.fillRect(-14, 0, 6, 5);                      // wheels
+      ctx.fillRect(8, 0, 6, 5);
+    }
+
+    function paintRider() {
+      ctx.fillStyle = palette.ice;
+      ctx.fillRect(-9, -16, 6, 11);                    // legs
+      ctx.fillRect(2, -16, 6, 11);
+      ctx.fillStyle = palette.neon;
+      ctx.fillRect(-8, -27, 15, 12);                   // body
+      ctx.fillStyle = palette.text;
+      ctx.fillRect(-5, -36, 10, 9);                    // head
+      ctx.fillStyle = palette.ember;
+      ctx.fillRect(6, -25, 10, 4);                     // arm
+    }
+
+    function paintSkater() {
+      ctx.save();
+      ctx.translate(skater.x, skater.y);
+      ctx.rotate(skater.rot);
+      paintBoard();
+      paintRider();
+      ctx.restore();
+    }
+
+    // The face comes from the score beside it rather than being named here,
+    // so the band keeps one display face however a world redefines it.
+    function banner(text, colour) {
+      ctx.globalAlpha = BANNER_ALPHA;
+      ctx.fillStyle = palette.void;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = colour;
+      ctx.font = "15px " + window.getComputedStyle(scoreEl).fontFamily;
+      ctx.textAlign = "center";
+      ctx.fillText(text, W / 2, H / 2 + 5);
+      ctx.textAlign = "left";
+    }
+
+    // Guard-first rather than a chain, and the first guard is the honest
+    // one: with the effects withdrawn this is not a broken game, it is a
+    // game that has been asked to hold still, and it says so.
+    function paintBanner() {
+      if (!allowed()) { banner("EFFECTS ARE OFF", palette.muted); return; }
+      if (!started) { banner("PRESS SPACE TO SKATE", palette.gold); return; }
+      if (over) { banner("WIPEOUT — SPACE TO RETRY", palette.neon); }
+    }
+
+    function paint() {
+      ctx.clearRect(0, 0, W, H);
+      paintSky();
+      paintGround();
+      obstacles.forEach(function (o) { o.paint(o, GROUND - o.h); });
+      paintSkater();
+      paintBanner();
+    }
+
+    // 🚨 BOUND ON THE CANVAS, NEVER ON THE DOCUMENT, and `preventDefault`
+    // only for the two keys that jump. On the document, Space would stop
+    // scrolling the page for every visitor on the site -- which looks like
+    // the site is broken, not like a game. Everything else, Tab included,
+    // passes straight through: the way out is the absence of a handler.
+    function onKeydown(event) {
+      if (event.code !== "Space" && event.code !== "ArrowUp") { return; }
+      event.preventDefault();
+      jump();
+    }
+
+    // `preventDefault` suppresses the compatibility mouse events, so a tap
+    // does not fire twice -- and it suppresses the browser's own
+    // focus-on-press with them, which is why the focus is moved by hand.
+    function onPointerdown(event) {
+      event.preventDefault();
+      cvs.focus();
+      jump();
+    }
+
+    // THE ONE WAY IN, for the load and for every resize after it, and the
+    // one place the palette is read. The observer fires when the band goes
+    // from `display:none` to laid out -- which is also the moment the WORLD
+    // changed, so a page opened in Manor and swapped live to Arcade would
+    // otherwise repaint its idle frame in Manor's colours.
+    //
+    // It establishes the STATE as well as the size: a band hidden at load
+    // has never been measured and so never reset, and a swap into Arcade
+    // would arrive here with no skater to draw. Only while no run is in
+    // flight -- a resize mid-run keeps its obstacles, a wipeout its banner.
+    function refit() {
+      if (!fit()) { return; }
+      palette = readPalette();
+      if (!started) { reset(); }
+      paint();
+    }
+
+    cvs.addEventListener("keydown", onKeydown);
+    cvs.addEventListener("pointerdown", onPointerdown);
+    // Unconditionally, with no `resize` fallback -- unlike the nav
+    // measurement in `base.html`, which predates this and guards for one. A
+    // `resize` listener could not do this job anyway: a live world swap lays
+    // the band out without changing the window at all, so the fallback would
+    // be a branch that never fires.
+    //
+    // And it fails CLOSED without one, which is why no guard is needed here:
+    // this line throws before the reveal below, so the band stays `hidden`
+    // and the visitor gets the no-JavaScript page -- a portfolio, intact
+    // (A1). A guarded version would reveal a band nothing can measure.
+    new window.ResizeObserver(refit).observe(cvs);
+
+    // Reveal BEFORE measuring: a hidden element has no box, and `refit`
+    // declines to paint one.
+    band.hidden = false;
+    refit();
+  })();
+  </script>
+
   <div class="mt-10 grid gap-3 sm:grid-cols-3 max-w-3xl">
     <div class="hud p-4">
       <p class="display" style="font-size:9px;color:var(--muted)">YEARS ACTIVE</p>
