@@ -14,6 +14,21 @@
   </div>
 </nav>
 
+{% comment %}
+  US-7.3. The nav is OUTSIDE this landmark and the four sections are inside it:
+  a skip link whose target included the nav would skip to the thing it is
+  trying to skip past. `id="main"` is the skip link's target and is spelled
+  the same on the detail page and the 404, so `base.html` can carry ONE link
+  that works on every page the site serves.
+
+  The audit measured the absence -- axe's `landmark-one-main`, and a count of
+  content outside any landmark -- on the one page that has a persistent nav,
+  two preference controls and a long run of tab stops ahead of the first
+  project card. The figures are in `docs/evidence/US-7.3/AUDIT.md`. The detail page and
+  the 404 already had a `<main>`; home was written first and never caught up.
+{% endcomment %}
+<main id="main">
+
 <!-- ░░ HERO ░░ -->
 <section id="home" class="max-w-6xl mx-auto px-4 pt-20 pb-16">
   <p class="text-xs mb-4 ice-text">&gt; booting portfolio.exe ...</p>
@@ -629,4 +644,5 @@
     © {% now "Y" %} AXE.DEV — Django API + httpx frontend
   </p>
 </section>
+</main>
 {% endblock %}

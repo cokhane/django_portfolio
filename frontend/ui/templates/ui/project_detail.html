@@ -3,7 +3,7 @@
 {% block title %}{% if project %}{{ project.title }} // AXE{% else %}AXE // Mission briefing{% endif %}{% endblock %}
 
 {% block content %}
-<main class="max-w-3xl mx-auto px-4 py-12 sm:py-16">
+<main id="main" class="max-w-3xl mx-auto px-4 py-12 sm:py-16">
   {% if not api_online %}
     {% include "ui/_signal_lost.html" %}
   {% else %}
