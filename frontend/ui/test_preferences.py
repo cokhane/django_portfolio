@@ -42,10 +42,20 @@ from .tests import AVAILABILITY, CONTACT_HREF, PITCH_LINE, PROJECT, PROJECTS, SK
 KEYS = ("axe.theme", "axe.motion", "axe.scares")
 
 # The owned inline script -- the one with no `src` and no `type`. Anchored
-# that way so neither the HTMX tag, the Tailwind tag nor the `json_script`
-# block can be mistaken for it; the `json_script` block in particular is a
-# `<script>` element too, which is the trap this pattern avoids.
+# that way so neither the HTMX tag nor the `json_script` block can be mistaken
+# for it; the `json_script` block in particular is a `<script>` element too,
+# which is the trap this pattern avoids.
 OWNED_SCRIPT = re.compile(r"<script>(.*?)</script>", re.S)
+
+# Everything in `<head>` that makes the parser wait, named by a fragment of
+# its tag. The store must come above all of them (AC 9) -- see the test for
+# why this is a set rather than one named tag.
+RENDER_BLOCKING = (
+    "unpkg.com/htmx.org",
+    "fonts.googleapis.com/css2",
+    "<style>",
+    "ui/tailwind.css",
+)
 
 # Every script element of any kind, for the JavaScript-off simulation.
 ANY_SCRIPT = re.compile(r"<script\b[^>]*>.*?</script>", re.S)
@@ -185,22 +195,31 @@ class PreferenceScriptTests(SimpleTestCase):
                 for key in KEYS:
                     self.assertIn(key, script)
 
-    def test_the_script_runs_before_the_stylesheet_and_the_cdn(self, *_mocks):
+    def test_the_script_runs_before_everything_render_blocking(self, *_mocks):
         """AC 9: the before-paint decision, pinned structurally rather than remembered.
 
         The class must be corrected before the browser paints, which is what
         makes a returning Found Footage visitor's page never flash candlelight.
         Being in `<head>` is what delivers that -- nothing is painted while
-        `<head>` is still parsing. Being ABOVE `cdn.tailwindcss.com` is the
-        second half: both tags are render-blocking, so a script placed after
-        the CDN waits on a third-party fetch before setting a class it already
-        knows. An edit that moves it below either one is silent in every test
-        but this, and visible to a visitor as a flash.
+        `<head>` is still parsing. Being ABOVE every render-blocking tag is
+        the second half: each one makes the parser wait, so a script placed
+        after any of them waits on a fetch before setting a class it already
+        knows. An edit that moves it below one is silent in every test but
+        this, and visible to a visitor as a flash.
+
+        Asserted against the whole set rather than a named tag. US-7.2 deleted
+        the third-party script that used to be first in it, and a test naming
+        that one tag would have gone green by losing its subject -- the
+        ordering rule outlived the tag, so the test is written against the
+        rule. A blocking tag added tomorrow belongs in this tuple.
         """
         head = self._home().split("</head>", 1)[0]
+        first = head.index("axePrefs")
 
-        self.assertLess(head.index("axePrefs"), head.index("cdn.tailwindcss.com"))
-        self.assertLess(head.index("cdn.tailwindcss.com"), head.index("<style>"))
+        for tag in RENDER_BLOCKING:
+            with self.subTest(tag=tag):
+                self.assertIn(tag, head, f"{tag} is no longer in <head>; fix the tuple")
+                self.assertLess(first, head.index(tag))
 
     def test_the_world_vocabulary_is_rendered_from_the_resolver(self, *_mocks):
         """AC 4: one definition of what a world is, and it is Python's.

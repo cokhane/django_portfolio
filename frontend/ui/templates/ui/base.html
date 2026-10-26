@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="en"{% if theme_class %} class="{{ theme_class }}"{% endif %}>
 <head>
 <meta charset="UTF-8">
@@ -16,9 +16,12 @@
   of the wrong world. That is the whole reason US-5.2 put the class on
   `<html>` rather than `<body>` -- `<body>` does not exist yet here.
 
-  Above `cdn.tailwindcss.com` rather than merely above the stylesheet:
-  both are render-blocking, so a script placed after the CDN tag waits on
-  a third-party fetch before it can set a class it already knows.
+  Above EVERY render-blocking resource, not merely above the stylesheet:
+  the inline `<style>`, the compiled sheet beside it and the webfont link
+  all block painting, so a script placed after any of them waits on a
+  fetch before it can set a class it already knows. US-7.2 removed the
+  third-party script that used to be the first of them; the ordering rule
+  outlived it, and `test_preferences.py` pins it against all four.
 
   NFR-7 is the hard rule in this block. Browser storage THROWS -- in
   private windows, and with site data blocked -- and it throws on the
@@ -170,10 +173,6 @@
 })();
 </script>
 
-<!-- Tailwind's CDN build is dev-only by its own docs and is unversioned,
-     so it cannot carry an SRI hash. Swap it for a compiled stylesheet
-     before this is treated as a production deployment. -->
-<script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"
         integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
         crossorigin="anonymous"></script>
@@ -1341,6 +1340,44 @@
      the frame the root class changes. */
   .clean #decor{display:none}
 </style>
+
+{% comment %}
+  ── THE COMPILED UTILITIES (US-7.2) ────────────────────────────────────
+  The Tailwind utilities, generated once by Tailwind's own compiler at a
+  pinned version and committed as a static file. What it replaced was an
+  unversioned, development-only CDN script: 407KB of JavaScript, with full
+  access to this page and no integrity hash possible, to produce the 17KB
+  of CSS now sitting in the file below.
+
+  🚨 IT GOES HERE, AFTER THE INLINE STYLESHEET, AND THE ORDER IS LOAD-
+  BEARING. The build it replaced appended its `<style>` to the end of
+  `<head>`, so the utilities have always come last. On Arcade -- the one
+  world that is `:root` rather than a class -- `.display` and `.text-sm`
+  are both single-class selectors and tie on specificity, so the utility
+  wins only by being later. Move this link above the `<style>` block and
+  `.display`'s `line-height:1.6` starts winning instead: every heading on
+  Arcade changes height, on every page, and no test that asserts content
+  can see it. The other three worlds are unaffected either way -- their
+  `.manor .display` rules outrank both.
+
+  The scan that builds this file reads `class="..."` out of the templates,
+  so a utility applied ONLY from JavaScript would be invisible to it and
+  absent from the file. Every class this site applies from script is a
+  custom one defined above -- `no-motion` and `no-scares`, written as
+  literals, and `manor`, `horror`, `clean` and `struck`, whose names the
+  script computes. `test_stylesheet.py` checks both halves, by two
+  different means, because no scan of script text can recover a name that
+  is never written in it.
+
+  One deliberate leftover. The sheet below carries Tailwind's preflight,
+  which overlaps the reset at the top of this stylesheet -- `box-sizing`,
+  `body{margin:0}`, `a{color:inherit}` and the two `[hidden]` rules are
+  now stated twice. They are left alone ON PURPOSE: they set the same
+  values preflight does, so the cascade is unchanged, and this story's
+  contract is that nothing visual may change. Retiring them is a separate
+  change with its own before-and-after, not a tidy-up to slip in here.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'ui/tailwind.css' %}">
 </head>
 <body>
 {% comment %}
