@@ -580,7 +580,20 @@
     {% endfor %}
   </div>
 
-  <div id="grid">{% include "ui/_project_grid.html" %}</div>
+  {% comment %}
+    US-7.3. `aria-live` belongs on THIS element and not inside the partial:
+    `hx-swap="innerHTML"` replaces the children and leaves `#grid` itself
+    standing, so a region declared in the fragment would be destroyed and
+    rebuilt on every swap and announce nothing. Declared on the container, it
+    survives and reports what arrived.
+
+    The gap it closes was measured in `docs/evidence/US-7.3/AUDIT.md`: filtering replaces
+    the whole grid, and before this attribute the page carried no live region
+    at all -- the one dynamic interaction the site has, invisible to a screen
+    reader. `polite` rather than `role="status"`, which implies
+    `aria-atomic` and would re-read the whole grid every time.
+  {% endcomment %}
+  <div id="grid" aria-live="polite">{% include "ui/_project_grid.html" %}</div>
 </section>
 
 <!-- ░░ CONTACT / HIRE-ME ░░ -->
