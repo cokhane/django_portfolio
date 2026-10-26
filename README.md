@@ -20,12 +20,14 @@ Both services run at once, in two terminals.
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -r requirements-dev.txt
 cp .env.example .env          # DJANGO_DEBUG=1 for local work
 ```
 
-`requirements.txt` includes `-e .`, which installs `portfolio_shared` — the
-settings helpers both projects import.
+`requirements-dev.txt` pulls in `requirements.txt` and adds the gate's tools at
+pinned versions. `requirements.txt` alone is enough to merely run the two
+services; it includes `-e .`, which installs `portfolio_shared` — the settings
+helpers both projects import.
 
 **Terminal 1 — the API (port 8001):**
 
@@ -83,9 +85,9 @@ way.
 ## Tests
 
 ```bash
-cd backend  && ../.venv/bin/python manage.py test                     #  7 tests
-cd backend  && ../.venv/bin/python manage.py test portfolio_shared    #  8 tests
-cd frontend && ../.venv/bin/python manage.py test                     # 14 tests
+cd backend  && ../.venv/bin/python manage.py test                     #  46 tests
+cd backend  && ../.venv/bin/python manage.py test portfolio_shared    #  12 tests
+cd frontend && ../.venv/bin/python manage.py test                     # 246 tests
 ```
 
 The frontend tests use `SimpleTestCase` and mock the API layer, so they never
@@ -93,24 +95,34 @@ need the backend running. All three suites need a `.env` to exist first — the
 settings are fail-closed, so without one they refuse to start rather than fall
 back to a known key.
 
+The counts above are a snapshot, measured 2026-10-26. CI asserts that the suites
+pass, never how many tests there are — a number committed to a workflow rots the
+first time anyone adds one.
+
 ## Linting
 
 `ruff` covers the whole tree in one pass. `pylint` cannot: there are two Django
 projects here, each with its own settings module, and neither is importable from
 the repo root. So it runs once per target, naming the settings that target needs.
 
+`flake8` runs as well, and is not redundant with `ruff`. Ruff's *stable* `E`
+rules are E4, E5, E7 and E9; pycodestyle's logical-line checks E1, E2 and E3 are
+still preview-only there, so flake8 is at present the only tool enforcing them.
+
 Run all of these **from the repository root** — the pylint config puts both
 service directories on `sys.path` using paths relative to it.
 
 ```bash
 .venv/bin/python -m ruff check .
+.venv/bin/python -m flake8
 
-.venv/bin/python -m pylint --django-settings-module=mysite.settings        portfolio_shared
-.venv/bin/python -m pylint --django-settings-module=mysite.settings        backend
-.venv/bin/python -m pylint --django-settings-module=frontend_site.settings frontend
+.venv/bin/python -m pylint --fail-under=10.0 --django-settings-module=mysite.settings        portfolio_shared
+.venv/bin/python -m pylint --fail-under=10.0 --django-settings-module=mysite.settings        backend
+.venv/bin/python -m pylint --fail-under=10.0 --django-settings-module=frontend_site.settings frontend
 ```
 
-Each must score `10.00/10`.
+Each must score `10.00/10`. `--fail-under` is pylint's own default; it is stated
+explicitly so the bar is visible in the log rather than inherited silently.
 
 Linting both services in a single invocation instead reports `R0801`
 duplicate-code between them, in three places: the two `manage.py` files, the two
@@ -127,6 +139,38 @@ is wiring this repository wrote, not scaffolding Django generated, so it lives
 in `portfolio_shared.env.environment_settings()` and each `settings.py` calls it
 in one line. It was duplicated until that extraction, and splitting the lint runs
 would have hidden it rather than fixed it.
+
+## Continuous integration
+
+Every pull request runs the gate above — `ruff`, `flake8`, the three `pylint`
+targets and all three test suites — from
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml). Lint and tests only:
+there is deliberately no deploy, publish or release step, the deployment half of
+the project being parked.
+
+**The workflow's commands are copied verbatim from this file**, venv and all.
+That is why the job builds a `.venv` on a runner that is already isolated: it
+lets the commands here and the commands in CI be character-for-character the
+same, so a local pass and a CI failure cannot disagree about what the gate is.
+Change a command in one place and change it in the other in the same commit —
+nothing enforces that automatically.
+
+**The tool versions are pinned in [`requirements-dev.txt`](requirements-dev.txt)**,
+not in the workflow. Installing them unpinned would let a new `pylint` release
+turn up a new check and fail a pull request that changed nothing — a tool upgrade
+arriving disguised as a code regression. Upgrading is therefore an edit to that
+file, reviewed like any other.
+
+**Python is pinned to 3.14**, one version, no matrix: it is the interpreter every
+number in this file was measured on. `pyproject.toml`'s
+`requires-python = ">=3.11"` is not a competing answer, because it is not true —
+`requirements.txt` pins Django 6.1.2, whose own metadata requires `>=3.12`, so
+3.11 could never have installed. That floor is stale and wants correcting on its
+own terms; nothing in CI depends on it.
+
+On a pull request the check reports as **`CI / lint-and-test`**. That is the name
+to use if it is ever made a required status check — a repository setting, not a
+file in here.
 
 ## Static files
 
