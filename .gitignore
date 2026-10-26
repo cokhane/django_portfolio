@@ -2,6 +2,10 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+# Coverage data and report. The bare name also matches backend/.coverage
+# and frontend/.coverage, which is where two of the three runs write.
+.coverage
+coverage.xml
 
 # Virtualenvs
 .venv/
