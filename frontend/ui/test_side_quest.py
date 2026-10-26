@@ -45,6 +45,7 @@ from .context_processors import CLEAN, ROOT_CLASSES, THEME_PARAM
 from .test_chooser import _css, _open_tag
 from .test_decor import _element
 from .test_effects import LAYER_ID
+from .test_keyboard import RING_DECLARATION, SITE_WIDE_RING
 from .test_lunge import _function_body
 from .test_preferences import (
     _assert_work_survives_without_scripts,
@@ -436,16 +437,24 @@ class SideQuestStylesheetTests(SimpleTestCase):
         CORRECTION 3. `touch-action:none` is the touch half of AC 7: without
         it the browser spends the first moment of a tap deciding whether it
         is the start of a scroll, and the jump arrives late or not at all.
+
+        US-7.3 moved the ring rather than removing it. This canvas used to
+        carry its own `#sk-canvas:focus-visible` copy of the declaration;
+        that story found only a handful of elements had an authored ring and
+        the rest fell through to the browser's, so the same declaration
+        became one site-wide rule and the copies collapsed into it. The
+        guarantee is unchanged and now stronger -- what this asserts is that
+        the shared rule exists and that nothing on the canvas takes it back,
+        which is the only way the canvas could still lose it.
         """
         sheet = self._sheet()
 
-        self.assertIn(
-            "outline:2px solid var(--ember)",
-            _declaration_block(sheet, f"#{CANVAS_ID}:focus-visible"),
-        )
+        self.assertIn(RING_DECLARATION, _declaration_block(sheet, SITE_WIDE_RING))
         declared = _declaration_block(sheet, f"#{CANVAS_ID}")
         self.assertIn("touch-action:none", declared)
-        self.assertNotIn("outline:none", declared)
+        # Subsumes the `outline:none` this used to check: ANY outline of the
+        # canvas's own would now override the shared ring, not only that one.
+        self.assertNotIn("outline:", declared)
 
     def test_the_band_adds_no_rung_to_the_ladder(self, *_mocks):
         """It is CONTENT, at `#page`'s `z-index:1`, not an overlay.
