@@ -1,0 +1,78 @@
+# The gate, run on every pull request.
+#
+# Every `run:` line below is copied VERBATIM from README.md -- the venv included,
+# which is why this job builds one instead of installing into the runner's own
+# interpreter. Two sources of truth for the gate is how a local pass and a CI
+# failure start disagreeing, so if you change a command here, change it there in
+# the same commit.
+#
+# Lint and tests only. There is deliberately no deploy, publish or release step,
+# because the deployment half of this project is parked -- there is nothing to
+# ship to yet, and a pipeline that pretends otherwise is a pipeline that rots.
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned, not a range. 3.14 is the interpreter the gate's numbers were
+      # measured on. Note that pyproject's `requires-python = ">=3.11"` is NOT
+      # a second opinion to reconcile with this -- see README, "Continuous
+      # integration".
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      # FIRST, before anything that imports Django. `portfolio_shared.env` is
+      # fail-closed: it reads .env from the repository root and, with
+      # DJANGO_DEBUG unset, refuses to start rather than fall back to a known
+      # signing key. Without this step every step below dies at import time.
+      #
+      # No secret is created. `.env.example` ships DJANGO_DEBUG=1 and an EMPTY
+      # DJANGO_SECRET_KEY, so the key resolves to the committed development
+      # placeholder, and .gitignore excludes the copy either way.
+      - name: Create the .env the fail-closed settings require
+        run: cp .env.example .env
+
+      - name: Install
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install -r requirements-dev.txt
+
+      - name: ruff
+        run: .venv/bin/python -m ruff check .
+
+      - name: flake8
+        run: .venv/bin/python -m flake8
+
+      # Three invocations, not one. Two Django projects live here, each with its
+      # own settings module and neither importable from the repo root; linting
+      # them together reports R0801 against Django's own generated scaffolding.
+      - name: pylint (portfolio_shared)
+        run: .venv/bin/python -m pylint --fail-under=10.0 --django-settings-module=mysite.settings        portfolio_shared
+
+      - name: pylint (backend)
+        run: .venv/bin/python -m pylint --fail-under=10.0 --django-settings-module=mysite.settings        backend
+
+      - name: pylint (frontend)
+        run: .venv/bin/python -m pylint --fail-under=10.0 --django-settings-module=frontend_site.settings frontend
+
+      # Run from each service's own directory, as the README does. No counts are
+      # asserted here: a number in CI rots the first time anyone adds a test.
+      - name: Tests (backend)
+        run: cd backend  && ../.venv/bin/python manage.py test
+
+      - name: Tests (shared)
+        run: cd backend  && ../.venv/bin/python manage.py test portfolio_shared
+
+      - name: Tests (frontend)
+        run: cd frontend && ../.venv/bin/python manage.py test
