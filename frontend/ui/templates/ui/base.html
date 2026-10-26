@@ -897,13 +897,16 @@
      no element here wears `crossing`. One honest correction to the story,
      which asserts all of these are "independent of the 72s cycle": the
      hands' `seep` is `alternate`, so its real period is 18s and 72 is
-     exactly four of them. It locks arithmetically. It cannot lock VISIBLY,
-     because every subscriber to the 72s clock is `manor-cast` (the beam
-     rides its parent saucer) and none of them renders in this world -- the
-     two casts never share a screen. The mockup's 9s is kept rather than
-     nudged off the factor, because changing a drawn value to satisfy a
-     ratio nothing can observe is the worse trade; US-6.4 adding a Found
-     Footage element on the shared clock is the day this stops being true.
+     exactly four of them. It locks arithmetically, and SINCE US-6.7 it
+     locks visibly too. What stood here said it could not -- that every
+     subscriber to the 72s clock was `manor-cast` and the two casts never
+     shared a screen -- and that stopped being true the moment US-6.7 put
+     this world's stalkers and their kills on the shared clock at 56 and
+     63. The 9s is still kept rather than nudged off the factor: `seep` is
+     an opacity drift with no moment to latch onto, the ratio is 4:1 inside
+     a 14s visible window, and changing a drawn value to satisfy a ratio
+     nobody can see remains the worse trade. The day it reads as a
+     metronome, the lever is this 9s.
      ──────────────────────────────────────────────────────────────────── */
   :root:not(.horror) .horror-cast{display:none}
   /* The band's equivalent of `#drift svg`: one rule for the group, so no
@@ -972,6 +975,140 @@
               rgba(216,214,206,.05) 45%,rgba(216,214,206,.09) 50%,transparent);
             animation:track 7s linear infinite}
   @keyframes track{0%{top:-70px}100%{top:100%}}
+
+  /* ── FOUND FOOTAGE'S STALKERS AND THEIR KILLS (US-6.7) ───────────────
+     The two slots the cycle was built around and nobody filled. US-6.1 cut
+     the grid 7s apart and left 56 and 63 free; US-6.2 allocated seven of
+     the nine to Manor and said so; US-6.3 reserved the last two in three
+     separate comments and took none of them. These four elements are what
+     those comments were holding the space for, which is why nothing here
+     retimes anything: the stage, the clock, the gate and the token all
+     already exist, and this block only puts creatures on them.
+
+     🚨 FOUND FOOTAGE ONLY, AND THE MOCKUP SAYS OTHERWISE. There both
+     figures and both splats are children of `.ghosts`, whose only gate is
+     `body.theme-clean .ghosts{display:none}` -- so they render in Manor
+     and in Arcade too. That grouping is a MOCKUP CONVENIENCE this sheet
+     has already replaced: `.ghosts` is one container for every drifting
+     thing, and the live layer deliberately split it into casts that each
+     name their world. Porting its gate verbatim would re-import the
+     grouping the split was made to remove. Three candidates lost to that:
+       - MANOR, via `manor-cast`. Against a recorded decision: US-6.2 fixed
+         Manor's cast at seven crossings BECAUSE the slots are allocated
+         across worlds. S11 holds this world "theatrical, not frightening"
+         -- its one near-scare, the approaching ghost, had to go behind
+         US-5.6's switch to stay inside that, and a figure that kills is
+         not theatrical. It would also need a second blood colour.
+       - BOTH, via a new class on `:not(.manor):not(.horror)`. Loses with
+         Manor, and adds a fourth gate rule for a world that should not
+         carry the elements at all. `weather-cast` is NOT that class:
+         US-6.4 named it for what its elements ARE, and these are not
+         weather.
+       - ARCADE, which porting the mockup's gate verbatim would imply.
+         Against two recorded decisions: US-6.2 and US-6.4 both withdraw
+         their casts from Arcade, which renders nothing on this layer.
+     So: `horror-cast`, the gate US-6.3 already wrote, and NO new rule.
+
+     WHICH IS ALSO WHY THE TOKEN NEEDS NO WORK. The splat reads
+     `fill="var(--blood)"`, and `--blood` is declared once, in `.horror{}`.
+     Gating these to the world that declares it makes AC 7's "no fallback"
+     hold by construction rather than by a rule: the splat cannot paint in
+     a world where its colour is undefined, because it cannot paint there
+     at all. US-6.3 wrote down what to do the day blood was needed
+     elsewhere -- define it in all four worlds, never reach for
+     `var(--blood,#4e0708)` -- and this is still not that day.
+
+     🚨 THE SPLAT'S PLACE IS DERIVED FROM THE FIGURE'S, NOT PLACED BY EYE.
+     `stalk` carries a figure from -16vw to 116vw across 0-19.5% of the
+     cycle, and `strike` peaks at 9.6%. A figure and its splat share one
+     delay, so at that peak the figure has travelled
+
+         -16 + (9.6 / 19.5) x 132 = 49vw
+
+     and that is where the blood belongs. Move one without the other and it
+     lands where nobody was standing. BOTH strikes peak at the same 9.6% of
+     the same path, so both splats belong at the same 49vw -- which is why
+     `left` and `bottom` are declared here ONCE rather than inline twice.
+     The mockup writes them inline and gives the second splat `left:38%`,
+     about 10vw to the left of the figure that made it; that is exactly the
+     failure AC 6 is named for, so the drawn value is corrected rather than
+     ported. 44% is the mockup's own value for the FIRST splat, kept: a
+     150px box at 44% centres within half its own width of a 92px figure at
+     49vw across every width this layer renders at, and a splat is not an
+     object that can be a few pixels wrong. What stays inline is what
+     genuinely differs between the two -- the box and the slot.
+
+     TWO TEMPOS PER FIGURE, as every creature on this stage has. The slow
+     one is the crossing and is NOT written here: `#drift .crossing` owns
+     72s, the one place it appears. The fast one is `sway`, and it rides a
+     WRAPPER DIV exactly as the ghosts' `bob` does, so the figure rocks
+     while the crossing carries it. Put `sway` on the shared clock and the
+     figure rocks once a minute.
+
+     `sway` NEEDS NO `transform-origin`, and the absence is deliberate
+     rather than forgotten. `.bat .wing` and `.witch .cloak` are pinned
+     because they rotate about a JOINT, and a part rotated about the
+     element corner visibly breaks. `sway` rotates the whole figure about
+     its own centre, which is already the default.
+
+     THE SHORTHAND ON `.sway` IS LEGITIMATE, for the reason US-6.4 records:
+     the ban is on a `.crossing`, whose duration lives elsewhere and would
+     be silently reset by a shorthand that omits it. A sway wrapper never
+     wears `crossing` and names its own duration, so there is nothing to
+     reset. The crossings themselves use `animation-name` longhand, as
+     every crossing in this sheet does.
+
+     NO RESTING OPACITY, unlike the mockup's `.stalker{opacity:.88}` and
+     `.kill{opacity:0}`. Both keyframe sets drive opacity across the whole
+     0-100% of the cycle, so a declared resting value is painted over at
+     every moment the element exists -- and the one state that could show
+     it, animations not running, is `display:none` on the container. A
+     value nothing can observe is a value that will drift.
+
+     REDUCED MOTION IS ABSENCE, settled by US-6.1 and followed by US-6.2,
+     US-6.3 and US-6.4. The mockup's `@media (prefers-reduced-motion)`
+     block, which pauses these animations and fades the figures to .2, is
+     deliberately NOT ported: `.no-motion #decor` withdraws the container,
+     and under `display:none` it would style nothing. This sheet carries no
+     OS-preference query at all, by contract.
+
+     NOTHING HERE REPEATS THE CONTAINER. No `aria-hidden`, no
+     `pointer-events`, no sizing -- `#decor` carries the first two and
+     `#drift svg` the third. `.stalker svg` carries ONLY its drop-shadow,
+     which is genuinely its own; adding `width` or `display` to it is the
+     per-element duplication US-6.1 was asked to drop, and the svg-sizing
+     test pins that rule set at exactly three.
+
+     ONE CONSEQUENCE FOR US-6.3, recorded because that story predicted it.
+     Its block notes that the hands' `seep` is `alternate`, so its real
+     period is 18s and 72 is exactly four of them -- a lock it called
+     unobservable "because every subscriber to the 72s clock is
+     `manor-cast`" and the two casts never share a screen. These four are
+     the first Found Footage elements on the shared clock, so that is no
+     longer true: the lock is real now. It is kept rather than fixed. The
+     `seep` is an opacity drift on a handprint with no moment to latch
+     onto, the ratio is 4:1 inside a 14s visible window, and retuning a
+     drawn value to satisfy a ratio nobody can see is the trade US-6.3
+     already refused for its own numbers. The day it reads as a metronome,
+     the lever is the hands' 9s.
+     ──────────────────────────────────────────────────────────────────── */
+  .stalker{bottom:0; animation-name:stalk; animation-timing-function:linear}
+  .stalker svg{filter:drop-shadow(0 0 16px rgba(0,0,0,.95))}
+  .stalker .sway{animation:sway 1.5s ease-in-out infinite}
+  @keyframes stalk{
+    0%{transform:translateX(-16vw); opacity:0}
+    2%{opacity:.88}
+    17.6%{opacity:.88}
+    19.5%,100%{transform:translateX(116vw); opacity:0}
+  }
+  @keyframes sway{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-7px) rotate(1.5deg)}}
+  .kill{left:44%; bottom:4%; animation-name:strike; animation-timing-function:linear}
+  @keyframes strike{
+    0%,8.9%{opacity:0; transform:scale(.3)}
+    9.6%{opacity:.95; transform:scale(1.15)}
+    10.5%{opacity:.7; transform:scale(1)}
+    12.5%,100%{opacity:0; transform:scale(1)}
+  }
 
   /* ── THE STORM AND THE POWER CUT (US-6.4) ────────────────────────────
      The weather US-6.1's ladder reserved rungs 440-455 for. Four rungs and
@@ -1559,15 +1696,16 @@
     creature's window to stop meaning fourteen seconds.
 
     THE DELAYS ARE A GRID, 7s apart, and they are allocated ACROSS worlds:
-    Manor holds 0/14/21/28/35/42/49 and leaves 56 and 63 FREE. US-6.3 was
-    expected to take them and does not: its band, pool and handprints each
-    run their own clock and nothing it ships subscribes to this one. In the
-    mockup those two slots belong to Found Footage's stalkers and their
-    kills, which no story has claimed yet. Measured over a full cycle
-    against the real opacity
+    Manor holds 0/14/21/28/35/42/49, and US-6.7 took the last two: 56 and
+    63 carry Found Footage's stalkers and their kills, which is what the
+    mockup draws there. US-6.3 was expected to claim them and did not --
+    its band, pool and handprints each run their own clock. Measured over a
+    full cycle against the real opacity
     envelopes: two on screen 33.9s, one 28.4s, none 9.7s, three NEVER. The
     bare stretch is covered by the lanterns and the mist, which do not
-    cross and so are always there.
+    cross and so are always there. Those four numbers are MANOR'S and stay
+    Manor's: the two slots added since are `horror-cast`, so they never
+    share a screen with this cast and cannot crowd it.
   {% endcomment %}
   <div id="drift">
     {% comment %}Ghosts. The second is the one that notices you.{% endcomment %}
@@ -1595,6 +1733,34 @@
     <div class="pumpkin manor-cast" style="--decor-size:72px; left:27%">{% include "ui/decor/_pumpkin.html" %}</div>
     <div class="pumpkin manor-cast" style="--decor-size:118px; right:9%">{% include "ui/decor/_pumpkin.html" %}</div>
     <div class="pumpkin manor-cast" style="--decor-size:62px; right:31%">{% include "ui/decor/_pumpkin.html" %}</div>
+
+    {% comment %}
+      Found Footage's two stalkers and the strike each leaves (US-6.7).
+      The grid's last two slots, 56 and 63, which US-6.1 cut and US-6.2,
+      US-6.3 and US-6.4 each reserved and left. ON THE STAGE rather than
+      siblings of it, unlike the rest of this world's band: these DO cross,
+      so they want the stage's clipping and its one `#drift > *` sizing
+      rule, and nothing about a figure at floor level needs to paint above
+      the work the way a ceiling band does.
+
+      Each element carries only what is ITS OWN -- its box and its slot.
+      The world is `horror-cast`, the gate US-6.3 wrote; the duration is
+      `crossing`, the one place 72s lives; the place a splat lands is
+      derived arithmetic and lives in the stylesheet beside the keyframes
+      it is derived from. The stylesheet block explains why this world and
+      not the mockup's three.
+
+      THE SWAY WRAPPER is the ghosts' `bob` shape: a figure's own tempo
+      rides a child div so the crossing can carry the parent. The first
+      sways at the rule's 1.5s and says nothing; the second names 1.9s
+      inline, which is the same "a tempo is data" rule US-6.3's droplets
+      follow. Neither wrapper wears `crossing`, which is what makes the
+      shorthand on `.sway` safe.
+    {% endcomment %}
+    <div class="stalker horror-cast crossing" style="--decor-size:92px; animation-delay:-56s"><div class="sway">{% include "ui/decor/_stalker_hooded.html" %}</div></div>
+    <div class="kill horror-cast crossing" style="--decor-size:150px; animation-delay:-56s">{% include "ui/decor/_kill.html" %}</div>
+    <div class="stalker horror-cast crossing" style="--decor-size:78px; animation-delay:-63s"><div class="sway" style="animation-duration:1.9s">{% include "ui/decor/_stalker_skull.html" %}</div></div>
+    <div class="kill horror-cast crossing" style="--decor-size:120px; animation-delay:-63s">{% include "ui/decor/_kill.html" %}</div>
   </div>
 
   {% comment %}
@@ -1617,9 +1783,10 @@
     on its own rung, which is also why US-6.1's `--decor-scale` had to move
     up to the container before this story could use it.
 
-    🚨 NOT ONE of them wears `crossing`. The 72-second cycle is Manor's
-    cast; the band, the pool, the hands and the tape each keep their own
-    clock, so slots 56 and 63 stay free for whoever draws the stalkers.
+    🚨 NOT ONE of them wears `crossing`. The band, the pool, the hands and
+    the tape each keep their own clock. Slots 56 and 63 are no longer free
+    -- US-6.7 gave them to this world's stalkers and their kills, which DO
+    cross and so DO wear it, on the stage rather than beside it.
 
     The upper handprint takes its drop from `translateY` rather than from a
     second `top`, so the nav's fallback height is written in exactly one
@@ -1639,9 +1806,9 @@
     nothing inside it can paint above the work at `1`. A power cut that
     renders behind the portfolio is not a power cut.
 
-    🚨 NOT ONE of them wears `crossing`. The 72-second cycle is Manor's cast;
-    these keep their own time -- 13s and 19s -- which is the entire point of
-    the story, so slots 56 and 63 stay free for whoever draws the stalkers.
+    🚨 NOT ONE of them wears `crossing`. These keep their own time -- 13s
+    and 19s -- which is the entire point of the story. Slots 56 and 63 went
+    to US-6.7's stalkers and kills, not to these.
 
     `weather-cast` is the world gate and covers BOTH worlds that get this.
     `scare` is on the power cut and on what it reveals, and NOT on the
