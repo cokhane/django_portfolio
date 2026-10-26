@@ -15,6 +15,7 @@ from .api import (
     fetch_availability,
     fetch_project,
     fetch_projects,
+    fetch_skills,
 )
 
 # The list payload (`ProjectListSerializer`). Each `summary` deliberately
@@ -267,6 +268,28 @@ class APIClientTests(SimpleTestCase):
         self.assertEqual(fetch_availability(), AVAILABILITY)
         self.assertTrue(
             mock_get.call_args.args[0].endswith("/api/availability/"),
+            mock_get.call_args.args[0],
+        )
+
+    @patch("ui.api.httpx.get")
+    def test_fetch_skills_requests_the_skills_path(self, mock_get):
+        """The one fetch in this module no test executed for real.
+
+        Every view test patches `ui.views.fetch_skills`, so the body of
+        `fetch_skills` itself ran in no suite: a wrong path inside it would
+        have been caught by nothing here, only by the live page. Its three
+        siblings each have a direct test; this closes the odd one out.
+
+        The trailing slash is part of the contract for the same reason it is
+        on the slug path: DRF answers a slash-less path with a 301 and httpx
+        does not follow redirects, so a path built without it fails as an
+        opaque transport error.
+        """
+        mock_get.return_value = httpx.Response(200, json=SKILLS, request=_REQUEST)
+
+        self.assertEqual(fetch_skills(), SKILLS)
+        self.assertTrue(
+            mock_get.call_args.args[0].endswith("/api/skills/"),
             mock_get.call_args.args[0],
         )
 
