@@ -1,18 +1,18 @@
 """Tests for the stage epic 6's decoration is built on, and its 72-second clock.
 
-A separate module for the reason `test_theme.py`, `test_hire_me_panel.py`,
-`test_preferences.py`, `test_chooser.py`, `test_effects.py` and
-`test_scares.py` each record: `tests.py` is already near pylint's
-`too-many-lines` ceiling. The story's Scope names `tests.py` because it was
-written before that split; the split is the newer decision and the one the
-repo follows.
+A separate module for the reason `test_theme.py` and five siblings each
+record: `tests.py` is near pylint's `too-many-lines` ceiling. This module now
+sits near it too, which is why US-6.7's assertions went to `test_stalkers.py`
+-- and why prose that has gone false is deleted to pay for an addition.
 
-**Two stories live here, in that order.** US-6.1 built the STAGE and the
-classes below pin it first; US-6.2 put Haunted Manor's CAST on it, and
-`ManorCastMarkupTests` and `ManorCastStylesheetTests` pin that. The stage
-tests were deliberately written against an empty layer -- the fence before
-the thing it fences -- which is why several of them read as near-trivial and
-are not: the cast was built inside boundaries that were already enforced.
+**Two stories built what is pinned here, in that order.** US-6.1 built the
+STAGE and the classes below pin it first; US-6.2 put Haunted Manor's CAST on
+it, pinned by `ManorCastMarkupTests` and `ManorCastStylesheetTests`. The
+stage tests were deliberately written against an empty layer -- the fence
+before the thing it fences -- which is why several read as near-trivial and
+are not. US-6.7 then put a SECOND world's cast on the same stage, so the
+constants below are keyed by world and the stage tests ask which cast owns
+each child; its own behaviour is pinned in `test_stalkers.py`.
 
 What the stage pins:
 
@@ -23,16 +23,15 @@ What the stage pins:
 4. **Both switches withdraw the layer whole**, and the world defined by
    absence never renders it (**S11**).
 
-What the cast adds: its count and its slots on that cycle, the world gate it
+What the casts add: their counts and their slots on that cycle, the gate each
 wears, the two tempos per creature and the pins they rotate about, and the
 single shared body behind the two ghosts.
 
 **What a Django render cannot carry is anything about motion**: it renders
-templates, it does not run them. So the things that only a browser can show
-were measured in one -- that every crossing resolves to 72000ms while a wing
-beats at 260ms, that no creature intercepts a tap, and that nothing overflows
-at 320px. Those numbers are recorded in US-6.2's Implementation notes, with
-the occupancy counts behind **AC 2**.
+templates, it does not run them. So what only a browser can show was measured
+in one -- every crossing resolving to 72000ms while a wing beats at 260ms, no
+creature intercepting a tap, nothing overflowing at 320px. Those numbers are
+in US-6.2's Implementation notes, with the occupancy counts behind **AC 2**.
 """
 
 import re
@@ -87,11 +86,14 @@ REVEAL = f"{LAYER_ID}.hidden = false"
 DIV = re.compile(r"<div\b|</div>")
 
 
-# US-6.2's cast, and how many of each the stage carries. Written out because
-# the number IS the decision: the mockup's nine delay slots are split across
-# worlds, and Manor's seven crossings are the seven this names. A creature
-# added without a slot would pass a count-free test and break the stagger.
+# The two casts the stage carries, written out because the number IS the
+# decision: the mockup's nine delay slots are split across worlds, and a
+# creature added without a slot would pass a count-free test and break the
+# stagger. US-6.2's is Manor's seven crossings plus four lanterns; US-6.7's
+# is the OTHER world's -- two figures that walk the floor and the splat each
+# leaves. Kept apart because the stage carried one world until that story.
 CAST = {"ghost": 2, "bat": 2, "witch": 1, "ufo": 1, "alien": 1, "pumpkin": 4}
+STALKERS = {"stalker": 2, "kill": 2}
 
 # The class every Manor element carries, and the one rule that withdraws
 # them. One class rather than a selector list, so a creature added later is
@@ -108,6 +110,12 @@ HORROR_CAST = "horror-cast"
 # what the elements ARE rather than whose they are.
 WEATHER_CAST = "weather-cast"
 
+# Every cast ON THE STAGE, keyed by the gate its members wear, plus the two
+# views the tests need. `weather-cast` is absent: siblings, not children.
+CASTS = {MANOR_CAST: CAST, HORROR_CAST: STALKERS}
+ON_STAGE = {creature: n for cast in CASTS.values() for creature, n in cast.items()}
+WORLD_OF = {creature: gate for gate, cast in CASTS.items() for creature in cast}
+
 # US-5.6 built this as the ONE container every scare element lives in, and
 # `.no-scares .scare{display:none}` already withdraws it. The approaching
 # ghost joins that container rather than getting a rule of its own, so this
@@ -116,11 +124,9 @@ WEATHER_CAST = "weather-cast"
 SCARE_HOOK = "scare"
 WORLD_GATE = f":root:not(.{MANOR}) .{MANOR_CAST}"
 
-# The slow clock's subscribers, and Manor's delays on it -- seven creatures
-# plus the beam, which rides the saucer's slot to run its own envelope.
-# 7s apart, leaving 56 and 63 FREE -- US-6.3 was expected to take them and
-# does not: its band, pool and hands each run their own clock. In the mockup
-# the two slots belong to Found Footage's stalkers, which no story has claimed.
+# The slow clock's subscribers: Manor's seven creatures, the beam riding the
+# saucer's slot, and -- since US-6.7 -- Found Footage's two stalkers and their
+# kills. 7s apart, and the grid is FULL: twelve crossings in nine slots.
 CROSSING = "crossing"
 
 # An element that is DATA against a shared rule: it carries both a class list
@@ -136,18 +142,22 @@ CROSSING = "crossing"
 # `DELAYS` -- an element written the other way round drops the count and fails
 # there, which a bare "did we match anything" guard would not have caught.
 STYLED_TAG = re.compile(r'<\w+ class="([^"]*)" style="([^"]*)"')
-DELAYS = ("0s", "-14s", "-21s", "-28s", "-35s", "-42s", "-49s", "-49s")
+DELAYS = ("0s", "-14s", "-21s", "-28s", "-35s", "-42s", "-49s", "-49s",
+          "-56s", "-56s", "-63s", "-63s")
 
 # The articulated parts and the pin each rotates about, in the SVG's own
 # coordinate space. Ported without these, wings and cloak rotate about the
 # element corner and the creature visibly breaks.
 PINS = {".bat .wing": "transform-origin:60px 24px", ".witch .cloak": "transform-origin:118px 40px"}
+# US-6.7's `sway` is deliberately NOT here: a wing and a cloak rotate about a
+# JOINT, while `sway` rocks the whole figure about its own centre -- already
+# the default, and a pin would MOVE it. Absence is the decision.
 
 # A creature's own fast tempo. None of these may be the shared 72s: the
 # mockup beats a wing at .26s and bills a cloak at 1.8s, and putting either
 # on the slow clock produces a bat that flaps once a minute.
 TEMPOS = ("animation:flap .26s", "animation:billow 1.8s", "animation:gutter 2.6s",
-          "animation:bob 4.6s", "animation:waft 19s")
+          "animation:bob 4.6s", "animation:waft 19s", "animation:sway 1.5s")
 
 # The rung mist takes, and the one it must not: `#drift` is a stacking
 # context at z-index 0, so mist inside it could never paint above the work.
@@ -158,7 +168,9 @@ MIST_ID = "mist"
 # wrapper. Subtracted from an element's class list, what remains is the
 # creature's own name, which is how the crossing selectors below are DERIVED
 # from the markup instead of being a third hand-kept copy of the cast.
-STRUCTURAL = frozenset({CROSSING, MANOR_CAST, SCARE_HOOK, "bob"})
+# `sway` is deliberately absent: a wrapper never wears `crossing`, so it never
+# reaches here -- and leaving it out is what would make it LOUD if one ever did.
+STRUCTURAL = frozenset({CROSSING, MANOR_CAST, HORROR_CAST, SCARE_HOOK, "bob"})
 
 # A rule that styles a creature ITSELF rather than a part inside it: all
 # classes, no descendant. `.ghost` and `.ghost.approach` qualify; `.bat .wing`
@@ -220,11 +232,9 @@ def _crossing_names(layer):
     DERIVED from the rendered layer rather than listed, and the difference is
     the whole value: a hand-kept tuple would leave the NEXT crossing unguarded
     by the test that claims to guard the cycle -- silently, and in a story
-    that cannot fail yet. Anything wearing `crossing` is covered the day it is
-    written, whether that is US-6.4's weather or whoever finally draws the
-    stalkers the mockup leaves in slots 56 and 63. (US-6.3 was expected to be
-    that story and was not: Found Footage's band runs its own clocks and puts
-    nothing on this one.)
+    that cannot fail yet. Anything wearing `crossing` is covered the day it
+    is written: US-6.7's stalkers and kills inherited this guard without a
+    line being added for them.
 
     Scanned over the whole layer, not just the stage's direct children: the
     saucer's beam is a GRANDCHILD, and it takes the clock too.
@@ -238,10 +248,10 @@ def _crossing_names(layer):
 def _stage_children(stage):
     """The `class` of every DIRECT child of `stage`, grandchildren excluded.
 
-    A flat regex over the same markup also finds the ghosts' `.bob` wrappers
-    and the saucer's beam, so a count taken that way reports fourteen
-    elements on an eleven-creature stage -- and, worse, a missing class on a
-    grandchild that was never required to carry one would read as a failure.
+    A flat regex over the same markup also finds the `.bob` and `.sway`
+    wrappers and the saucer's beam, so a count taken that way reports five
+    more elements than the stage has creatures -- and, worse, a missing class
+    on a grandchild never required to carry one would read as a failure.
     Depth is the only honest way to ask what is ON the stage.
     """
     classes, depth = [], 0
@@ -305,9 +315,9 @@ class DecorLayerMarkupTests(SimpleTestCase):
         the container in CSS: the container's rule cannot protect the page
         from a child that re-enables pointers on itself.
 
-        US-6.2 then populated it, and this is where that is cashed in:
-        eleven elements and ~7.4KB of markup later, the layer
-        still announces nothing and still swallows no tap. `role=` joined
+        US-6.2 and US-6.7 then populated it, and this is where that is
+        cashed in: fifteen elements of markup later, the layer still
+        announces nothing and still swallows no tap. `role=` joined
         the list then, because an SVG given one would be announced even
         under `aria-hidden`. Run over all three pages for the reason the
         test above records.
@@ -607,20 +617,17 @@ class ManorCastMarkupTests(SimpleTestCase):
         return _element(page, LAYER_ID)
 
     def test_the_whole_cast_is_on_the_stage(self, *_mocks):
-        """AC 1: eleven elements, and the COUNT of each is the assertion.
+        """AC 1: fifteen elements, and the COUNT of each is the assertion.
 
-        Counting rather than merely finding one of each is what makes this a
-        test of the decision instead of a test of the markup's existence.
-        The cast size was a question the story asked out loud -- nine is the
-        plan's number, a smaller cut was explicitly allowed -- and the answer
-        is bound to the stagger: Manor holds seven of the mockup's nine delay
-        slots and leaves two free. A creature added without a slot
-        reads as clutter and a creature dropped leaves the stage bare, and
-        neither shows up in a test that only asks "is there a bat".
+        Counting rather than merely finding one of each makes this a test of
+        the decision instead of a test of the markup's existence: a creature added
+        without a slot reads as clutter and one dropped leaves the stage
+        bare, and neither shows in a test that asks only "is there a bat".
+        Taken over every cast, so US-6.7's four count as US-6.2's eleven do.
         """
         layer = self._layer()
 
-        for creature, expected in CAST.items():
+        for creature, expected in ON_STAGE.items():
             with self.subTest(creature=creature):
                 self.assertEqual(len(re.findall(rf'class="{creature}\b', layer)), expected)
 
@@ -635,26 +642,20 @@ class ManorCastMarkupTests(SimpleTestCase):
         creature's window to quietly stop meaning fourteen seconds.
 
         Asserted over the MARKUP, because `test_the_cycle_is_written_once`
-        already pins the stylesheet half. Between them the number has exactly
-        one home. The delay is the opposite case and stays inline: eight
-        different values cannot be one rule.
+        pins the stylesheet half; between them the number has one home. The
+        delay is the opposite case and stays inline -- twelve values cannot
+        be one rule. Scoped to elements wearing `crossing`, because a blanket
+        scan said the same thing only while every animated element on the
+        layer was one: US-6.3's droplets and US-6.7's second sway wrapper
+        each carry their OWN duration as data. The 72s literal stays banned
+        from the markup outright -- no element of any world may write it.
 
-        Scoped to elements wearing `crossing`, which is what the name has
-        always meant. A blanket scan for the string over the whole layer said
-        the same thing only while every animated element on it was a
-        crossing; US-6.3's thirteen droplets each carry their OWN duration as
-        data, which is that story's AC 4 rather than a regression of this
-        one. The 72s literal is still banned from the markup outright -- no
-        element of any world has a reason to write it.
-
-        Counted against `DELAYS` rather than merely proved non-empty, and that
-        is what makes the narrowing safe. `STYLED_TAG` reads `class` before
-        `style`, so a crossing written with its attributes the other way round
-        matches nothing -- and a guard that only asked "did we match at least
-        one" would pass on seven of eight while the eighth went unexamined.
-        Pinning the count means a crossing the regex cannot see fails here
-        instead of slipping through, which is the property the blanket scan
-        had for free and a narrowed one has to buy.
+        Counted against `DELAYS` rather than merely proved non-empty, and
+        that is what makes the narrowing safe: `STYLED_TAG` reads `class`
+        before `style`, so a crossing written the other way round matches
+        nothing, and a guard asking only "did we match at least one" would
+        leave it unexamined. Pinning the count means such a crossing fails
+        here instead of slipping through.
         """
         layer = self._layer()
         crossings = [style for classes, style in STYLED_TAG.findall(layer)
@@ -675,8 +676,9 @@ class ManorCastMarkupTests(SimpleTestCase):
         the change that would quietly make it three, and three reads as
         clutter rather than as a haunting.
 
-        Eight, not seven: the beam rides the saucer's own slot so that it
-        fires while the saucer hovers rather than on a clock of its own.
+        Twelve in nine slots: the beam rides the saucer's, and each of
+        US-6.7's splats rides its own stalker's, for the same reason -- an
+        event on a clock of its own fires where its creature is not.
 
         The pumpkins are deliberately absent from this list. They do not
         cross -- they sit along the bottom for the whole cycle, which is what
@@ -692,22 +694,27 @@ class ManorCastMarkupTests(SimpleTestCase):
         """AC 4: the gate is a class each creature wears, not a list it is on.
 
         This is the half a selector cannot protect. One rule withdraws
-        everything wearing `manor-cast`, so a creature that forgets the class
-        is not gated at all -- it would drift through Found Footage and
-        through Just the Work, which is the world defined by absence. The
-        rule would still be there, still correct, still passing its own test.
+        everything wearing a gate, so a creature that forgets its class is not
+        gated at all -- it would drift through every world, Just the Work
+        included. The rule would still be there, still correct, still passing.
 
-        So every direct child of the stage is checked, derived from the
-        markup rather than from a list: adding a creature without the class
-        fails here on the next run.
+        Since US-6.7 the stage carries TWO worlds, so "wears a gate" stopped
+        being enough: a stalker wearing `manor-cast` would be withdrawn from
+        the world it belongs to and shown in the one it does not. Each child
+        is checked against the cast that OWNS it -- exactly one creature
+        name, wearing exactly the gate `CASTS` pairs with it. No gate, the
+        wrong gate, two gates or two names all fail here.
         """
         stage = _element(self._layer(), STAGE_ID)
 
         children = _stage_children(stage)
-        self.assertEqual(len(children), sum(CAST.values()))
+        self.assertEqual(len(children), sum(ON_STAGE.values()))
         for classes in children:
+            worn = set(classes.split())
+            named = worn & ON_STAGE.keys()
             with self.subTest(element=classes):
-                self.assertIn(MANOR_CAST, classes)
+                self.assertEqual(len(named), 1, "a stage child names one creature")
+                self.assertEqual(worn & CASTS.keys(), {WORLD_OF[named.pop()]})
 
     def test_the_mist_takes_its_own_rung_outside_the_stage(self, *_mocks):
         """AC 1: why mist is a sibling of the stage and not a creature on it.
@@ -787,7 +794,7 @@ class ManorCastMarkupTests(SimpleTestCase):
         """
         pinned = self._layer({THEME_PARAM: CLEAN})
 
-        for creature in CAST:
+        for creature in ON_STAGE:
             with self.subTest(creature=creature):
                 self.assertIn(f'class="{creature}', pinned)
 
@@ -856,11 +863,10 @@ class ManorCastStylesheetTests(SimpleTestCase):
         claim testable rather than merely stated.
 
         The creatures are DERIVED from the markup, not listed: whatever wears
-        `crossing` is checked, so the next story to put something on the
-        shared clock inherits this guard without anybody remembering to
-        extend a tuple. Only a creature's OWN rule is
+        `crossing` is checked, so US-6.7's stalkers and kills inherited this
+        guard without a tuple being extended. Only a creature's OWN rule is
         read -- `.bat .wing` beats at .26s with the shorthand, legitimately,
-        because a part is not on the shared clock.
+        and so does `.stalker .sway`, because a part is not on the clock.
         """
         page = self.client.get(reverse("ui:home")).content.decode()
         css = _css(page)
@@ -929,14 +935,11 @@ class ManorCastStylesheetTests(SimpleTestCase):
         a rule naming one element, which is the list this test is named after.
 
         Asserted in BOTH directions, the second DERIVED: every rule in the
-        sheet that sizes an SVG is collected, and the shared one must be the
-        only one there. A per-creature list would have had to be kept in
-        step with the cast; this fails on a seventh creature nobody told it
-        about. A count
-        of `height:auto` across the whole sheet was the first version and
-        was both brittle -- any unrelated future use fails it -- and partly
-        vacuous, since it passed whether or not the declaration was in the
-        rule this test is named after.
+        sheet that sizes an SVG is collected, and the three group rules must
+        be the only ones there. A per-creature list would have had to be kept
+        in step with the cast; this fails on a creature nobody told it about
+        -- including US-6.7's, whose `.stalker svg` carries its drop-shadow
+        and deliberately no sizing at all.
         """
         css = self._sheet()
         shared = _declaration_block(css, f"#{STAGE_ID} svg")

@@ -30,7 +30,7 @@ from django.urls import reverse
 
 from .context_processors import CLEAN, HORROR, MANOR, THEME_PARAM
 from .test_chooser import _css
-from .test_decor import DURATION, HORROR_CAST, STYLED_TAG, _element
+from .test_decor import DURATION, HORROR_CAST, _element
 from .test_effects import LAYER_ID, _z
 from .test_preferences import _inline_script, _render_every_page
 from .test_theme import CSS_RULE, _colour_literals, _declaration_block, _sections
@@ -148,25 +148,43 @@ class FoundFootageMarkupTests(SimpleTestCase):
         self.assertEqual(len(set(tempos)), DROPLETS)
         self.assertNotIn(DURATION, tempos)
 
-    def test_nothing_in_this_world_takes_a_slot_on_the_shared_clock(self, *_mocks):
-        """AC 5: the band keeps its own time, and the grid stays free.
+    def test_the_band_keeps_its_own_time(self, *_mocks):
+        """AC 5: none of THIS story's five elements rides the shared clock.
 
-        US-6.2 allocated the 72s cycle's delays across worlds and left 56 and
-        63 expecting this story to claim them. It does not: every element
-        here runs its own clock, so no element wears `crossing` and neither
-        delay appears. Both halves are asserted, because wearing the class
-        without a delay and taking a delay without the class are two
-        different ways to end up back on the shared clock.
+        🚨 NARROWED BY US-6.7, and the narrowing is the point rather than a
+        concession. What stood here asserted two things: that no `horror-cast`
+        element wears `crossing`, and that `-56s` and `-63s` appear nowhere in
+        the layer. US-6.7 draws this world's stalkers and their kills ON the
+        72s cycle at exactly those two delays, so both claims became false by
+        charter -- the slots were reserved for that story in three separate
+        comments, and the grid being free was a description of what US-6.3
+        shipped, never a design goal.
+
+        What was always TRUE is what survives: the band, the pool, the two
+        handprints and the tape each run a clock of their own. That is this
+        story's AC 5, and it is asserted over all five by name.
+
+        The delay half is deleted rather than relaxed, because it is strictly
+        SUBSUMED: `test_decor.test_every_crossing_takes_a_slot_on_the_shared_
+        clock` equates the sorted multiset of every `animation-delay` in the
+        whole layer with `DELAYS`, so an element of this band taking `-56s` --
+        or any other slot -- adds an entry there and fails. That is a stronger
+        check than `assertNotIn` ever was, and it covers every world at once.
+
+        Selecting by NAME also repairs a gap the old form had. It read
+        `test_decor.STYLED_TAG`, which matches only an element carrying both
+        `class` and `style`; of this band's five that is the two hands alone,
+        so the blood, the pool and the tape were never examined. All five now
+        are, which is why this module no longer imports that pattern at all.
         """
         layer = self._layer()
+        worn = [classes.split() for classes in re.findall(r'class="([^"]*)"', layer)]
 
-        for classes, _style in STYLED_TAG.findall(layer):
-            if HORROR_CAST in classes.split():
-                with self.subTest(element=classes):
-                    self.assertNotIn(CROSSING, classes.split())
-        for delay in ("-56s", "-63s"):
-            with self.subTest(delay=delay):
-                self.assertNotIn(delay, layer)
+        for name, expected in BAND.items():
+            found = [classes for classes in worn if name in classes]
+            with self.subTest(element=name):
+                self.assertEqual(len(found), expected)
+                self.assertEqual([one for one in found if CROSSING in one], [])
 
     def test_the_band_ships_in_every_world_and_is_withdrawn_by_the_stylesheet(self, *_mocks):
         """F-18: the server sends one page, and CSS decides what it shows.
@@ -365,12 +383,16 @@ class FoundFootageStylesheetTests(SimpleTestCase):
         and perfectly locked.
 
         Independence from the layer's own 72s cycle is deliberately NOT
-        asserted, and the stylesheet comment says why: the hands' `seep` is
-        `alternate`, so its real period is 18s and 72 is exactly four of
-        those. It locks arithmetically and cannot lock visibly, because
-        every subscriber to that cycle is `manor-cast` and none renders in
-        this world. An assertion of independence from 72 could only be
-        false or vacuous, so there is none.
+        asserted, and since US-6.7 the reason has changed. The hands' `seep`
+        is `alternate`, so its real period is 18s and 72 is exactly four of
+        those -- an arithmetic lock. It used to be unobservable because every
+        subscriber to that cycle was `manor-cast` and none rendered in this
+        world; US-6.7 put this world's stalkers on it, so the lock is now
+        real and visible in principle. It is kept rather than retuned: `seep`
+        is an opacity drift with no moment to latch onto, and the stylesheet
+        block records the trade. An assertion of independence from 72 would
+        now be plainly FALSE, so there is still none -- for the opposite
+        reason, which is why this paragraph says so rather than aging quietly.
         """
         css = self._sheet()
         blocks = "".join(_declaration_block(css, sel) for sel in CLOCKED)

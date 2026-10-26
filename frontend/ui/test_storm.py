@@ -135,10 +135,14 @@ class WeatherMarkupTests(SimpleTestCase):
         entire subject here, so an element of this story riding the shared
         one would contradict the design rather than merely break it.
 
-        What is NOT re-asserted is that the two free delays stay free:
-        `test_found_footage.py` scans the WHOLE layer for `-56s` and `-63s`,
-        so these elements are already inside that guarantee and a second
-        copy would be one more thing to keep in step.
+        What is NOT re-asserted is where these elements sit on that cycle.
+        The scan this once pointed at -- `test_found_footage.py` looking for
+        `-56s` and `-63s` across the whole layer -- went when US-6.7 drew the
+        stalkers that claim both slots. The guarantee did not go with it:
+        `test_decor.test_every_crossing_takes_a_slot_on_the_shared_clock`
+        equates every `animation-delay` in the layer with `DELAYS`, so a
+        weather element taking any slot fails there, which is the stronger
+        check and still not this module's to copy.
         """
         layer = self._layer()
 
