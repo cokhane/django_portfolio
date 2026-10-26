@@ -285,7 +285,23 @@
     cursor:pointer; transition:all .15s ease; letter-spacing:.05em;
   }
   .btn:hover{color:var(--gold); border-color:var(--ember); box-shadow:0 0 12px -2px rgba(255,107,26,.6)}
-  .btn[aria-pressed="true"]{color:var(--void); background:var(--gold); border-color:var(--gold)}
+  /* ── THE PRIMARY-BUTTON HOOK (US-7.3) ─────────────────────────────────
+     `.btn-primary` is a STYLING hook and `aria-pressed` is a STATE, and the
+     hero CTA needed the first while wearing the second. `aria-pressed` is
+     not allowed on a link at all -- axe reports it critical -- so a screen
+     reader was being told the link was a pressed toggle, to borrow this
+     fill. The genuine toggles below keep the attribute; the link gets the
+     class, and the two share one declaration so no world can drift.
+
+     `.btn.btn-primary`, never a bare `.btn-primary`: this list has to beat
+     `.btn:hover`, and the comment above Haunted Manor spells out why that is
+     not automatic. Both selectors here are (0,2,0) and both sit after the
+     hover rule, so they tie and win; `.btn-primary` alone would be (0,1,0)
+     and would hand the hero button the hover look the moment a pointer
+     touched it -- silently, and invisibly to a resting screenshot. Measured
+     as a negative control; see `docs/evidence/US-7.3/AUDIT.md`.
+     ──────────────────────────────────────────────────────────────────── */
+  .btn[aria-pressed="true"],.btn.btn-primary{color:var(--void); background:var(--gold); border-color:var(--gold)}
 
   .xp-track{height:6px; background:var(--track); border:1px solid var(--line); overflow:hidden}
   .xp-fill{height:100%; background:linear-gradient(90deg,var(--neon),var(--ember),var(--gold))}
@@ -293,6 +309,56 @@
   .htmx-request #grid{opacity:.35; transition:opacity .1s}
   a{color:inherit}
   ::selection{background:var(--ember); color:#000}
+
+  /* ── THE FOCUS RING (US-7.3) ──────────────────────────────────────────
+     ONE rule for every focusable thing on the site. Until this story two
+     elements had an authored ring and everything else fell through to the
+     browser's -- and the page declares no `color-scheme`, so Chrome paints
+     its LIGHT-mode ring on a site that is dark in all four worlds. The
+     before/after ratios are in `docs/evidence/US-7.3/AUDIT.md`.
+
+     THIS COMMENT IS THE AUTHORITY ON THE SELECTOR; the tests point here
+     rather than restating it. `body ` is LOAD-BEARING, not tidiness: the
+     compiled sheet is linked AFTER this one and its preflight carries
+     `:-moz-focusring{outline:auto}` at (0,1,0). A bare `:focus-visible` is
+     also (0,1,0) and would lose to it on source order in Firefox. The
+     descendant combinator makes this (0,1,1).
+
+     `--ember` and no new token: it is the accent every world already
+     defines. A thirteenth token would be an alias in three worlds out of
+     four, which is the relationship the theme contract's rule 2 says not to
+     assert. Found Footage overrides the colour in its own block.
+
+     `outline-offset` is what makes ONE colour per world enough: the ring sits
+     on the page surface rather than on a button's own fill, so it never has
+     to contrast with a gold or crimson background it happens to land on.
+     ──────────────────────────────────────────────────────────────────── */
+  body :focus-visible{outline:2px solid var(--ember); outline-offset:2px}
+
+  /* ── THE SKIP LINK (US-7.3) ───────────────────────────────────────────
+     Off-screen until focused, then the first thing on the page. Hidden by
+     clipping rather than `display:none` or `visibility:hidden`, both of
+     which take it out of the tab order -- which would leave the site with a
+     skip link no keyboard can reach, the one way of getting this wrong that
+     still looks right in the markup.
+
+     Rung 490 is the control cluster's, reused on purpose: epic 6's ceiling
+     is 455 and `test_decor.py` admits only 455-and-below or the four rungs
+     above it, so 490 is the one legal value that clears the sticky nav and
+     every decoration. The cluster is bottom-right and this is top-left, so
+     sharing a rung costs nothing.
+     ──────────────────────────────────────────────────────────────────── */
+  .skip-link{position:fixed; top:12px; left:12px; z-index:490}
+  /* `clip-path` does both halves of the hiding: it paints nothing AND clips
+     hit-testing, so the nav underneath keeps its clicks (measured in all
+     four worlds). `width`/`height` are the fallback for a browser without
+     it. No `padding:0`: the world `.btn` rules outrank this one, so it would
+     be a dead declaration -- and a clipped box has no size worth arguing
+     about. */
+  .skip-link:not(:focus){
+    width:1px; height:1px; overflow:hidden; white-space:nowrap;
+    clip-path:inset(50%);
+  }
 
   /* ── THE WORLD CHOOSER (US-5.4) ──────────────────────────────────────
      Shared chrome, so it belongs with the BASE rules rather than inside a
@@ -364,10 +430,14 @@
   }
   /* CORRECTION 3 (F-14). The mockup folds focus into the hover rule and then
      sets `outline:none`, leaving a keyboard visitor a 1px border change to
-     find. Keep the native outline for focus and let hover be hover: the whole
-     interaction has to be completable with the keyboard alone. */
+     find. Hover is hover here and nothing else: the whole interaction has to
+     be completable with the keyboard alone.
+
+     The ring itself is no longer spelled here. US-5.4 gave this card its own
+     `:focus-visible` rule; US-7.3 found the site had only two such rules and
+     promoted the identical declaration to THE FOCUS RING in the base rules
+     above, which now covers this card like everything else. */
   .ch-card:hover{transform:translateY(-5px); border-color:var(--ember)}
-  .ch-card:focus-visible{outline:2px solid var(--ember); outline-offset:2px}
   .ch-card{transition:transform .18s ease, border-color .18s ease}
   .ch-name{display:block; font-size:17px; margin:0 0 8px}
   .ch-desc{display:block; font-size:13px; color:var(--muted); margin:0 0 16px; min-height:54px}
@@ -454,11 +524,15 @@
      the count stays three. Nothing here animates, so there is nothing for
      stillness to still.
 
-     The focus ring is `:focus-visible` in CSS rather than the mockup's
-     `focus`/`blur` listeners painting a `boxShadow` -- US-5.4's CORRECTION
-     3 settled that, and the mockup's `outline:none` is dropped with them.
-     `touch-action:none` so the first tap is a jump rather than the start of
-     a scroll gesture the browser is still deciding about.
+     NO FOCUS RING HERE, and that is not an omission. The ring is
+     `:focus-visible` in CSS rather than the mockup's `focus`/`blur`
+     listeners painting a `boxShadow` -- US-5.4's CORRECTION 3 settled that,
+     and the mockup's `outline:none` went with them. US-7.3 then moved the
+     declaration itself to THE FOCUS RING in the base rules, which covers
+     this canvas along with every other focusable element; the only thing
+     this block must never do is set an `outline` of its own and take it
+     back. `touch-action:none` so the first tap is a jump rather than the
+     start of a scroll gesture the browser is still deciding about.
      ──────────────────────────────────────────────────────────────────── */
   .manor .arcade-cast,.horror .arcade-cast,.clean .arcade-cast{display:none}
   /* The two chrome rows. `:first-child` carries its line BELOW it and the
@@ -476,7 +550,6 @@
      with the viewport -- a narrow screen is a shorter view of the same run,
      so a cone stays 16px wide and legible at 320px (F-13, AC 9). */
   #sk-canvas{display:block; width:100%; height:190px; cursor:pointer; touch-action:none}
-  #sk-canvas:focus-visible{outline:2px solid var(--ember); outline-offset:2px}
 
   /* ── THE DECORATION LAYER (US-6.1) ────────────────────────────────────
      The stage, not the cast. 6.2 and 6.3 put creatures on it; 6.4 adds
@@ -1208,7 +1281,7 @@
     border-color:var(--edge); color:#cfc7dc; padding:12px 18px;
   }
   .manor .btn:hover{color:var(--lit); border-color:var(--ember); box-shadow:0 0 22px -4px rgba(255,185,94,.6)}
-  .manor .btn[aria-pressed="true"]{
+  .manor .btn[aria-pressed="true"],.manor .btn.btn-primary{
     background:rgba(255,185,94,.14); border-color:var(--ember); color:var(--lit);
     box-shadow:0 0 26px -6px rgba(255,185,94,.5);
   }
@@ -1254,13 +1327,23 @@
   .horror .neon-text{color:var(--lit); text-shadow:0 0 14px rgba(212,112,95,.55)}
   .horror .gold-text{color:var(--gold); text-shadow:0 0 10px rgba(201,185,154,.25)}
   .horror .ice-text{color:#7fa877}
+
+  /* US-7.3. The one world where the shared ring's `--ember` is not good
+     enough: #b33a2b measures 3.38:1 on this world's --void and 3.16:1 on its
+     --panel -- a pass by a hair, and AC 2 asks for a ring that contrasts
+     against each world's own background rather than one that scrapes the
+     threshold. `--lit` is the colour US-7.1 introduced for exactly this
+     problem here; its own ratios are recorded beside the `--lit` definition
+     below rather than repeated. Only the colour is overridden; the width and
+     the offset stay the shared rule's. */
+  .horror :focus-visible{outline-color:var(--lit)}
   .horror .hud{background:linear-gradient(160deg,rgba(17,19,20,.95),rgba(8,9,10,.95))}
   .horror .hud::before,.horror .hud::after{border-color:#6e1616}
   .horror .card:hover{box-shadow:0 0 0 1px var(--ember),0 12px 34px -12px rgba(179,58,43,.5)}  /* derived */
   .horror .xp-fill{background:linear-gradient(90deg,#4a1010,var(--neon),var(--ember))}
   .horror .btn{font-family:'Special Elite',serif; font-size:12px; letter-spacing:.1em; color:#9a9a90}
   .horror .btn:hover{color:var(--gold); box-shadow:0 0 12px -2px rgba(179,58,43,.6)}  /* derived */
-  .horror .btn[aria-pressed="true"]{background:var(--neon); border-color:var(--neon); color:#e8e4da}
+  .horror .btn[aria-pressed="true"],.horror .btn.btn-primary{background:var(--neon); border-color:var(--neon); color:#e8e4da}
   .horror body::before{background:repeating-linear-gradient(0deg,rgba(0,0,0,.34) 0 1px,transparent 1px 3px)}
   .horror body::after{background:radial-gradient(ellipse at center,transparent 38%,rgba(0,0,0,.9) 100%)}
   /* US-6.5's other half, and the one decoration in this codebase that is NOT
@@ -1320,7 +1403,7 @@
     letter-spacing:0; color:var(--text); background:transparent; padding:11px 18px;
   }
   .clean .btn:hover{border-color:var(--neon); color:var(--neon); box-shadow:none}
-  .clean .btn[aria-pressed="true"]{background:var(--neon); border-color:var(--neon); color:var(--void)}
+  .clean .btn[aria-pressed="true"],.clean .btn.btn-primary{background:var(--neon); border-color:var(--neon); color:var(--void)}
   .clean body::before,.clean body::after{display:none}
   .clean .flicker{animation:none}
   /* AC 6. Just the Work has no scare to govern (S11), and a switch that
@@ -1381,6 +1464,25 @@
 </head>
 <body>
 {% comment %}
+  ── THE SKIP LINK (US-7.3) ─────────────────────────────────────────────
+  FIRST IN `<body>`, because a skip link reached after anything else is a
+  skip link that skips nothing. The run of tab stops it spares a visitor on
+  every page load is measured in `docs/evidence/US-7.3/AUDIT.md`.
+
+  OUTSIDE `#page`, deliberately. `#page` wears `jolt`, and US-6.5 puts a
+  `transform` on it during a scare -- a transformed ancestor re-parents
+  `position:fixed` descendants, so a skip link inside it would ride the
+  shake and, worse, stop being positioned against the viewport. Outside, it
+  is fixed against the viewport in every world and during every scare.
+
+  `.btn` and nothing else for its look: the skip link is a control, every
+  world already styles `.btn`, and reaching for a colour here would be the
+  literal the theme contract forbids. `href="#main"` is the one id this
+  story put on all three pages' `<main>`, so ONE link serves the whole site.
+{% endcomment %}
+<a class="btn skip-link" href="#main">SKIP TO CONTENT</a>
+
+{% comment %}
   `#page` is what lifts the work above the drifting layer -- the mockup's
   `.wrap{position:relative; z-index:1}`, which this codebase never had
   because Tailwind gives each section its own gutter. Without it the content
@@ -1440,7 +1542,7 @@
     Outside `#drift`, because it is a DEFINITION and not a cast member --
     the gate below is written over that element's children.
   {% endcomment %}
-  <svg width="0" height="0" style="position:absolute"><defs><filter id="wisp" x="-40%" y="-20%" width="180%" height="160%"><feGaussianBlur stdDeviation="1.6"/></filter></defs></svg>
+  <svg focusable="false" width="0" height="0" style="position:absolute"><defs><filter id="wisp" x="-40%" y="-20%" width="180%" height="160%"><feGaussianBlur stdDeviation="1.6"/></filter></defs></svg>
 
   {% comment %}
     ── HAUNTED MANOR'S CAST (US-6.2) ─────────────────────────────────────

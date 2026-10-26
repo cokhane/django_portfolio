@@ -14,6 +14,21 @@
   </div>
 </nav>
 
+{% comment %}
+  US-7.3. The nav is OUTSIDE this landmark and the four sections are inside it:
+  a skip link whose target included the nav would skip to the thing it is
+  trying to skip past. `id="main"` is the skip link's target and is spelled
+  the same on the detail page and the 404, so `base.html` can carry ONE link
+  that works on every page the site serves.
+
+  The audit measured the absence -- axe's `landmark-one-main`, and a count of
+  content outside any landmark -- on the one page that has a persistent nav,
+  two preference controls and a long run of tab stops ahead of the first
+  project card. The figures are in `docs/evidence/US-7.3/AUDIT.md`. The detail page and
+  the 404 already had a `<main>`; home was written first and never caught up.
+{% endcomment %}
+<main id="main">
+
 <!-- ░░ HERO ░░ -->
 <section id="home" class="max-w-6xl mx-auto px-4 pt-20 pb-16">
   <p class="text-xs mb-4 ice-text">&gt; booting portfolio.exe ...</p>
@@ -28,7 +43,7 @@
     hundreds of functions. Press START.
   </p>
   <div class="flex flex-wrap gap-3">
-    <a href="#projects" class="btn" aria-pressed="true">▶ VIEW PROJECTS</a>
+    <a href="#projects" class="btn btn-primary">▶ VIEW PROJECTS</a>
     <a href="#contact" class="btn">✉ CONTACT</a>
   </div>
 
@@ -565,7 +580,20 @@
     {% endfor %}
   </div>
 
-  <div id="grid">{% include "ui/_project_grid.html" %}</div>
+  {% comment %}
+    US-7.3. `aria-live` belongs on THIS element and not inside the partial:
+    `hx-swap="innerHTML"` replaces the children and leaves `#grid` itself
+    standing, so a region declared in the fragment would be destroyed and
+    rebuilt on every swap and announce nothing. Declared on the container, it
+    survives and reports what arrived.
+
+    The gap it closes was measured in `docs/evidence/US-7.3/AUDIT.md`: filtering replaces
+    the whole grid, and before this attribute the page carried no live region
+    at all -- the one dynamic interaction the site has, invisible to a screen
+    reader. `polite` rather than `role="status"`, which implies
+    `aria-atomic` and would re-read the whole grid every time.
+  {% endcomment %}
+  <div id="grid" aria-live="polite">{% include "ui/_project_grid.html" %}</div>
 </section>
 
 <!-- ░░ CONTACT / HIRE-ME ░░ -->
@@ -629,4 +657,5 @@
     © {% now "Y" %} AXE.DEV — Django API + httpx frontend
   </p>
 </section>
+</main>
 {% endblock %}

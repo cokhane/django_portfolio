@@ -17,9 +17,9 @@ single-line only: a multi-line one renders its own text into the page. That is
 not hypothetical here -- it put the very phrase this comment warns about onto
 the 404 itself, where only the by-hand check caught it.
 {% endcomment %}
-<main class="max-w-3xl mx-auto px-4 py-20">
+<main id="main" class="max-w-3xl mx-auto px-4 py-20">
   <div class="hud p-8 text-center">
-    <p class="display text-sm neon-text mb-3">// NO SUCH MISSION</p>
+    <h1 class="display text-sm neon-text mb-3">// NO SUCH MISSION</h1>
     <p class="text-sm mb-6" style="color:var(--muted)">
       Nothing is filed at <span class="tag">{{ request_path }}</span>. The briefing may have been
       retired, or the coordinates mistyped.
