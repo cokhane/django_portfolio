@@ -29,3 +29,17 @@ ignore-paths = ["^.*/migrations/.*$", "^\\.venv/.*$"]
 
 [tool.pylint.format]
 max-line-length = 100
+
+[tool.coverage.report]
+# Read ONLY by the `coverage xml` step, which is the one that runs from the
+# repository root. Coverage looks for its config in the current directory and
+# does not walk up, so the three `coverage run` lines -- which start from
+# backend/ and frontend/ -- never see this section; what they must measure is
+# given to them as `--source` on the command line instead. A [tool.coverage.run]
+# section here would be dead config.
+#
+# `*/migrations/*` is the same exclusion ruff spells as extend-exclude above,
+# flake8 as `exclude` in .flake8, and pylint as ignore-paths: four tools, four
+# syntaxes, none able to read another's list. The other four names are Django's
+# generated scaffolding, which this project does not hand-maintain.
+omit = ["*/migrations/*", "*/manage.py", "*/wsgi.py", "*/asgi.py", "*/settings.py"]

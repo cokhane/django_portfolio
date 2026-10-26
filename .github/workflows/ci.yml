@@ -6,9 +6,10 @@
 # failure start disagreeing, so if you change a command here, change it there in
 # the same commit.
 #
-# Lint and tests only. There is deliberately no deploy, publish or release step,
-# because the deployment half of this project is parked -- there is nothing to
-# ship to yet, and a pipeline that pretends otherwise is a pipeline that rots.
+# Lint, tests and changed-line coverage only. There is deliberately no deploy,
+# publish or release step, because the deployment half of this project is parked
+# -- there is nothing to ship to yet, and a pipeline that pretends otherwise is
+# a pipeline that rots.
 name: CI
 
 on:
@@ -22,7 +23,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Not the default shallow clone. diff-cover diffs this branch against
+      # origin/main, and a depth-1 checkout has no origin/main to diff against
+      # -- it fails on a missing revision, which reads as a tooling bug rather
+      # than as the one-line checkout setting it actually is.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       # Pinned, not a range. 3.14 is the interpreter the gate's numbers were
       # measured on. Note that pyproject's `requires-python = ">=3.11"` is NOT
@@ -68,11 +75,37 @@ jobs:
 
       # Run from each service's own directory, as the README does. No counts are
       # asserted here: a number in CI rots the first time anyone adds a test.
-      - name: Tests (backend)
-        run: cd backend  && ../.venv/bin/python manage.py test
+      #
+      # The suites run THROUGH coverage, not beside it: `coverage run` executes
+      # the same `manage.py test`, so these are the test steps and the
+      # measurement steps at once -- the suites are not run twice. `--source` is
+      # on the command line because coverage looks for its config in the current
+      # directory and does not walk up, so a run starting in backend/ never
+      # reads pyproject.toml. It also makes a file no test imports show up at 0%
+      # instead of vanishing from the report.
+      - name: Tests + coverage (backend)
+        run: cd backend  && ../.venv/bin/python -m coverage run --source=. --append manage.py test
 
-      - name: Tests (shared)
-        run: cd backend  && ../.venv/bin/python manage.py test portfolio_shared
+      - name: Tests + coverage (shared)
+        run: cd backend  && ../.venv/bin/python -m coverage run --source=portfolio_shared --append manage.py test portfolio_shared
 
-      - name: Tests (frontend)
-        run: cd frontend && ../.venv/bin/python manage.py test
+      - name: Tests + coverage (frontend)
+        run: cd frontend && ../.venv/bin/python -m coverage run --source=. --append manage.py test
+
+      # Two data files, because two runs start from backend/ and one from
+      # frontend/. combine merges them and deletes its inputs. The xml step then
+      # runs from the repository root, and that is what makes the paths in the
+      # report repo-root-relative -- which is the only reason diff-cover can
+      # match them against the paths git reports for the diff.
+      - name: Coverage (combine)
+        run: .venv/bin/python -m coverage combine backend/.coverage frontend/.coverage
+
+      - name: Coverage (xml)
+        run: .venv/bin/python -m coverage xml
+
+      # The changed lines only, against main -- NFR-5 is about what a pull
+      # request adds, and a total threshold on this tree would force either a
+      # growing exclusion list or a number picked to pass. diff-cover is a
+      # console script: `python -m diff_cover` has no entry point.
+      - name: Coverage (changed lines)
+        run: .venv/bin/diff-cover coverage.xml --compare-branch=origin/main --fail-under=100

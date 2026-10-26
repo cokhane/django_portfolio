@@ -99,6 +99,56 @@ The counts above are a snapshot, measured 2026-10-26. CI asserts that the suites
 pass, never how many tests there are — a number committed to a workflow rots the
 first time anyone adds one.
 
+### Coverage
+
+On a pull request the suites run *through* coverage. These six lines are what CI
+runs; they replace the three above rather than joining them, so nothing is run
+twice:
+
+```bash
+cd backend  && ../.venv/bin/python -m coverage run --source=. --append manage.py test
+cd backend  && ../.venv/bin/python -m coverage run --source=portfolio_shared --append manage.py test portfolio_shared
+cd frontend && ../.venv/bin/python -m coverage run --source=. --append manage.py test
+
+.venv/bin/python -m coverage combine backend/.coverage frontend/.coverage
+.venv/bin/python -m coverage xml
+.venv/bin/diff-cover coverage.xml --compare-branch=origin/main --fail-under=100
+```
+
+**Each line starts from the repository root**, exactly as in the block above —
+the `cd` does not carry over, so pasting the three run lines in one shell fails
+on the second. In CI each is a separate step, which starts at the root anyway.
+
+Three details here are load-bearing, and all three are easy to get wrong:
+
+- **`--source` is a flag, not config.** Coverage looks for its configuration in
+  the current directory and does not walk up, so a run started in `backend/`
+  never reads `pyproject.toml` at all. `--source` also makes a module that no
+  test imports appear in the report at 0% instead of being absent from it, which
+  is the difference between a new untested file failing the gate and sailing
+  through it.
+- **`combine` before `xml`.** Two of the runs start from `backend/` and one from
+  `frontend/`, so they write two separate data files; `combine` merges them and
+  deletes its inputs. The `xml` step then runs from the root, and *that* is what
+  makes the paths inside `coverage.xml` repo-root-relative — which is the only
+  reason `diff-cover` can match them against the paths git reports for the diff.
+  Setting `relative_files` instead does not work here: the paths come out
+  relative to `backend/`, and `coverage xml` then dies on `No source for code:
+  'manage.py'`.
+- **`diff-cover` is a console script.** `python -m diff_cover` has no entry
+  point and fails with `No module named diff_cover.__main__`.
+
+The threshold is **100% of the lines the pull request changed**, not of the
+repository. Total coverage is deliberately not gated: there is untested Django
+scaffolding here, and a total threshold would force either a growing exclusion
+list or a number chosen to make it pass. `# pragma: no cover` is a suppression
+like any other and is not used — a line that cannot be covered is usually a line
+that wants reshaping, which is the point of measuring.
+
+`[tool.coverage.report]` in `pyproject.toml` holds the omit list — migrations,
+`manage.py`, `wsgi.py`, `asgi.py` and the settings modules. It is read only by
+the `coverage xml` step, the one that runs from the root.
+
 ## Linting
 
 `ruff` covers the whole tree in one pass. `pylint` cannot: there are two Django
@@ -143,10 +193,15 @@ would have hidden it rather than fixed it.
 ## Continuous integration
 
 Every pull request runs the gate above — `ruff`, `flake8`, the three `pylint`
-targets and all three test suites — from
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml). Lint and tests only:
-there is deliberately no deploy, publish or release step, the deployment half of
-the project being parked.
+targets, all three test suites, and then coverage on the lines that pull request
+changed — from [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Lint,
+tests and coverage only: there is deliberately no deploy, publish or release
+step, the deployment half of the project being parked.
+
+**The checkout is not shallow.** `fetch-depth: 0` is set because `diff-cover`
+diffs the branch against `origin/main`, and the default depth-1 checkout has no
+`origin/main` to diff against — it fails on a missing revision, which reads like
+a broken tool rather than the one-line checkout setting it is.
 
 **The workflow's commands are copied verbatim from this file**, venv and all.
 That is why the job builds a `.venv` on a runner that is already isolated: it
