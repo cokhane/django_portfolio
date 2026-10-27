@@ -30,7 +30,7 @@ from django.urls import reverse
 
 from .context_processors import CLEAN, HORROR, MANOR, THEME_PARAM
 from .test_chooser import _css
-from .test_decor import DURATION, HORROR_CAST, _element
+from .test_decor import DURATION, HORROR_CAST, STAGE_ID, _element
 from .test_effects import LAYER_ID, _z
 from .test_preferences import _inline_script, _render_every_page
 from .test_theme import CSS_RULE, _colour_literals, _declaration_block, _sections
@@ -48,8 +48,10 @@ DROPLETS = 13
 
 # The rung each element takes, from US-6.1's ladder. The hands share 26 with
 # `#mist`, which is Manor's and never co-renders; the tape sits at 28, over
-# the glass and under the blood.
-RUNGS = {".hand": 26, ".tracking": 28, ".pool": 399, ".blood": 400}
+# the glass and under the blood. US-6.9's splatter is the third thing on 26
+# and the same argument covers it -- "things on the glass" stays one rung.
+RUNGS = {".hand": 26, ".splat": 26, ".tracking": 28,
+         ".pool": 399, ".blood": 400}
 
 # The one rule that withdraws the whole world, and the class it reads.
 WORLD_GATE = f":root:not(.{HORROR}) .{HORROR_CAST}"
@@ -86,6 +88,36 @@ NAV_FALLBACK = re.compile(rf"var\({NAV_VAR},(\d+)px\)")
 
 # The 72-second cycle's subscription class, which nothing here may wear.
 CROSSING = "crossing"
+
+# US-6.9's blood on the glass: one drawing, three placements. The COUNT is the
+# decision, as `BAND`'s is -- the mockup carries nine instances and they are
+# three placements repeated once per mockup screen, not nine positions a
+# scrolling page could use. It is kept out of `BAND` because that tuple is
+# US-6.3's five and several docstrings there say so, and out of `CLOCKED`
+# because this is the one element of the world that subscribes to no clock at
+# all; adding it would break that test's `len(tempos) == len(CLOCKED)`.
+SPLAT = "splat"
+SPLATS = 3
+
+# A splat's opening tag, its inline `style`, and the artwork inside it. The
+# tag is captured whole so the gate and the clock can be read off it: a
+# membership check against the layer would be satisfied by the word appearing
+# anywhere, including in a sibling's class list.
+SPLAT_TAG = re.compile(rf'<div class="{SPLAT} [^>]*>')
+SPLAT_STYLE = re.compile(rf'<div class="{SPLAT} [^>]*style="([^"]*)"')
+SPLAT_SVG = re.compile(rf'<div class="{SPLAT} [^>]*>\s*(<svg.*?</svg>)', re.DOTALL)
+
+# The one placement value that is genuinely per-instance DATA. The offset is
+# NOT here on purpose -- it is derived in the sheet and read through
+# `--gutter`, which is the thing `test_no_placement_is_written_at_the_call_site`
+# exists to keep true.
+SIZE_DATA = re.compile(r"--decor-size:(\d+)px")
+
+# Half the 1152px (`max-w-6xl`) content column. It has exactly one home in the
+# sheet -- the `--gutter` derivation -- and this constant pins that one home
+# rather than duplicating it: the ink stops at the column's edge at EVERY
+# width, which no visible opacity could achieve on this palette.
+HALF_COLUMN = 576
 
 
 @patch("ui.views.fetch_availability", return_value=AVAILABILITY)
@@ -194,12 +226,19 @@ class FoundFootageMarkupTests(SimpleTestCase):
         identity IS the contract. So this pins the half the server owns, and
         the gate rule below pins the half the stylesheet owns. Mirrors
         US-6.2's test of the same name, for the same reason.
+
+        US-6.9's AC 5 ("nothing renders in Just the Work") is this test plus
+        the gate test below, and it needs no third: the splatter wears the
+        same class as the band, so the one rule that withdraws the world
+        withdraws it too. Asserting the splat here is what makes that true
+        by evidence rather than by assumption.
         """
         for world in (MANOR, CLEAN, HORROR):
             with self.subTest(world=world):
                 layer = self._layer({THEME_PARAM: world})
                 self.assertIn(f'class="blood {HORROR_CAST}', layer)
                 self.assertIn(f'class="tracking {HORROR_CAST}"', layer)
+                self.assertIn(f'class="{SPLAT} {HORROR_CAST}', layer)
 
     def test_the_artwork_reaches_colour_only_through_the_token(self, *_mocks):
         """The token layer's rule: no literal in this markup gets to be a colour.
@@ -222,19 +261,27 @@ class FoundFootageMarkupTests(SimpleTestCase):
         self.assertIn(f"var({BLOOD})", layer)
 
     def test_only_the_elements_that_hang_from_the_ceiling_read_the_nav(self, *_mocks):
-        """AC 2: the band and the upper handprint, and nothing else.
+        """AC 2: the band, the upper handprint, the upper splat, nothing else.
 
         The pool is at the floor and the lower hand is anchored to it, so
         neither has any business knowing the nav's height. Asserted as a
         count rather than a presence: the failure worth catching is the
         anchor spreading to elements that do not need it, which would make
         a nav change move things it should never touch.
+
+        US-6.9 is the third, and it joined for the reason this class exists
+        rather than by resemblance: the mockup hangs its first splat 18px
+        ABOVE its frame's top edge, and rung 26 paints over the nav -- the
+        nav's `z-50` is scoped inside `#page`'s `z-index:1` context and
+        cannot outrank a sibling of it -- so the ported offset would be
+        blood on the brand. It drops the `top` and wears this instead.
         """
         layer = self._layer()
 
-        self.assertEqual(layer.count(NAV_ANCHOR), 2)
+        self.assertEqual(layer.count(NAV_ANCHOR), 3)
         self.assertIn(f'class="blood {HORROR_CAST} {NAV_ANCHOR}"', layer)
         self.assertIn(f'class="hand {HORROR_CAST} {NAV_ANCHOR}"', layer)
+        self.assertIn(f'class="{SPLAT} {HORROR_CAST} {NAV_ANCHOR}"', layer)
 
 
 @patch("ui.views.fetch_availability", return_value=AVAILABILITY)
@@ -493,3 +540,162 @@ class FoundFootageStylesheetTests(SimpleTestCase):
             if any(name in selector for name in RUNGS) or ".bd" in selector:
                 with self.subTest(selector=selector.strip()):
                     self.assertNotIn("!important", block)
+
+
+@patch("ui.views.fetch_availability", return_value=AVAILABILITY)
+@patch("ui.views.fetch_skills", return_value=SKILLS)
+@patch("ui.views.fetch_projects", return_value=PROJECTS)
+class FrameSplatterTests(SimpleTestCase):
+    """US-6.9: the mockup's splatter, on the glass and off the words.
+
+    A class of its own inside this module rather than a module of its own:
+    the splatter is this world's blood on this world's rung, gated by the
+    class US-6.3 wrote, and every constant it needs is already here. What it
+    does NOT re-assert is everything containment already gives it -- the
+    focus walk, the click-transparency and the two withdrawals all live in
+    `test_decor.py` and `test_effects.py` and cover `#decor` whole.
+    """
+
+    def _layer(self):
+        """The decoration layer's markup, from `<div id="decor"` to its close."""
+        page = self.client.get(reverse("ui:home")).content.decode()
+        return _element(page, LAYER_ID)
+
+    def _sheet(self):
+        """The stylesheet, comments stripped."""
+        return _css(self.client.get(reverse("ui:home")).content.decode())
+
+    def _styles(self):
+        """Each splat's inline `style` attribute, in source order."""
+        return SPLAT_STYLE.findall(self._layer())
+
+    def test_one_drawing_is_included_once_per_placement(self, *_mocks):
+        """AC 2, and the mockup correction this story carries.
+
+        The mockup holds NINE splatters and they are NOT three drawings
+        reused: all nine differ, 25-30 paths each, because they are
+        generated rather than drawn. What repeats is the three PLACEMENTS,
+        once per mockup screen. So the live layer ports ONE drawing and
+        includes it three times -- nobody can see two of these at the same
+        scale and angle, and nine copies of 5KB of path data in a template
+        would be the per-element duplication this layer keeps refusing.
+
+        Asserted as byte-identity of the three rendered bodies, which is
+        what "one partial" actually means once Django has run: a second
+        partial added later would pass a count and fail here.
+        """
+        drawings = SPLAT_SVG.findall(self._layer())
+
+        self.assertEqual(len(drawings), SPLATS)
+        self.assertEqual(len(set(drawings)), 1)
+
+    def test_the_splatter_is_a_rung_and_never_joins_the_cast(self, *_mocks):
+        """AC 1 and AC 3: a sibling of the stage, on no clock at all.
+
+        `#drift` is a stacking context at `z-index:0`, so anything inside it
+        paints UNDER the work at rank 1 -- which is the whole argument for
+        rung 26 and the reason every rung of this world sits beside the
+        stage rather than in it. The crossing check is the other half: this
+        is the one element of the world that subscribes to nothing, so a
+        later hand adding `crossing` to make it drift would be changing the
+        story's decision rather than extending it.
+        """
+        page = self.client.get(reverse("ui:home")).content.decode()
+        layer, stage = _element(page, LAYER_ID), _element(page, STAGE_ID)
+
+        self.assertNotIn(SPLAT, stage)
+        for tag in SPLAT_TAG.findall(layer):
+            with self.subTest(tag=tag):
+                self.assertNotIn(CROSSING, tag)
+                self.assertNotIn("animation", tag)
+
+    def test_each_placement_carries_its_own_box_and_nothing_else_does(self, *_mocks):
+        """AC 2: size, position and angle are DATA against one rule.
+
+        `--decor-size` is the form the bolt and the eyes already use, and it
+        is read WITH a fallback in the rule so `test_theme.py`'s palette
+        scan -- which treats a fallback-less `var()` in a base rule as a
+        token every world owes -- correctly leaves geometry alone.
+
+        The distinctness check is the point of the three: the mockup's
+        190/150/110 are three placements, and two that collapsed to one
+        number would be a placement silently lost.
+        """
+        styles = self._styles()
+        sizes = [SIZE_DATA.search(style) for style in styles]
+
+        for style, size in zip(styles, sizes, strict=True):
+            with self.subTest(style=style):
+                self.assertIsNotNone(size)
+                self.assertNotIn("width:", style)
+        self.assertEqual(len({one.group(1) for one in sizes}), SPLATS)
+
+    def test_no_placement_is_written_at_the_call_site(self, *_mocks):
+        """AC 8 (**A1**), and the reason this story is not mechanical.
+
+        This rung paints OVER the work, so a splat at a VIEWPORT corner
+        lands on text at any width where the column reaches the edge, and
+        the story's Q3 table shows no visible opacity repairs that on this
+        palette. Placement is therefore the lever -- and a placement that
+        can be mistyped at the call site is a placement that will be.
+
+        So nothing here writes an offset. `--gutter` is derived ONCE in the
+        sheet from half the column, the instance's own box and its
+        rotation's overhang; each instance names only its own two numbers
+        and reads `left`/`right` from it. Asserted in both directions: the
+        derivation is present in the rule, and no instance carries a
+        hard-coded offset of its own -- which is what makes a resize
+        re-derive its placement instead of stranding it on the words.
+        """
+        block = _declaration_block(self._sheet(), f".{SPLAT}")
+
+        self.assertIn(
+            f"--gutter:calc(50% - {HALF_COLUMN}px"
+            " - var(--decor-size,0) - var(--splat-turn,0px))", block)
+        for style in self._styles():
+            with self.subTest(style=style):
+                self.assertRegex(style, r"(?:left|right):var\(--gutter\)")
+                self.assertNotRegex(style, r"(?:left|right):\s*-?[\d.]")
+
+    def test_the_rule_sizes_the_splatter_and_the_world_rule_sizes_its_art(self, *_mocks):
+        """AC 2 and AC 3: one rule, and NOT a second one naming the artwork.
+
+        `test_decor.py` pins the set of SVG-sizing rules in the whole sheet
+        at exactly three -- the stage's, this world's and the weather's --
+        so the mockup's `.splat svg{display:block; width:100%; height:auto}`
+        cannot be ported and does not need to be: `horror-cast` is worn, and
+        `.horror-cast svg` already carries it.
+
+        `isolation` is checked for the same reason it is named in AC 3. It
+        exists in the mockup to contain a splat inside a frame; there are no
+        frames, and a stacking context re-formed anywhere on this layer is
+        the one failure US-6.1's rule exists to prevent.
+        """
+        css = self._sheet()
+        block = _declaration_block(css, f".{SPLAT}")
+
+        self.assertIn("calc(var(--decor-size,0) * var(--decor-scale,1))", block)
+        self.assertIn("position:fixed", block)
+        for banned in ("animation", "isolation", "transform"):
+            with self.subTest(declaration=banned):
+                self.assertNotIn(banned, block)
+        self.assertNotIn(f".{SPLAT} svg{{", css)
+
+    def test_the_artwork_reaches_this_world_s_colour_with_no_fallback(self, *_mocks):
+        """AC 4: the token is the colour, not a second name for a literal.
+
+        `var(--blood,#4e0708)` is what US-6.3 ruled out and recorded why --
+        it makes the fallback the real colour -- and the gate is what makes
+        the absence safe: the splatter cannot paint in a world that does not
+        declare the token, because it cannot paint there at all. So AC 4's
+        "defined in every world the splatter paints in" is satisfied by
+        construction, with no declaration added anywhere.
+
+        The count and the no-literal sweep are NOT repeated here: the
+        one-drawing test owns the first and `test_the_artwork_reaches_colour_
+        only_through_the_token` already sweeps the whole layer for the second.
+        """
+        for drawing in SPLAT_SVG.findall(self._layer()):
+            with self.subTest(drawing=drawing[:60]):
+                self.assertIn(f'fill="var({BLOOD})"', drawing)
+                self.assertNotIn(f"var({BLOOD},", drawing)
