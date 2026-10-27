@@ -577,7 +577,9 @@
        blood pool · ceiling band       399 · 400
        storm · bolt                    440 · 441
        blackout · what it reveals      450 · 455   <- EPIC 6 CEILING
-       the lunge                             455   <- US-6.5, and LAST
+       the scare's flash                     455   <- US-6.8
+       the lunge                             455   <- US-6.5
+       the scare's spray                     455   <- US-6.8, and LAST
        ─────────────────────────────────────────
        vignette · scanlines            488 · 489   US-5.2, not epic 6's
        the REMOVE EFFECTS cluster      490         US-5.5
@@ -586,6 +588,15 @@
      **455, not the 490 the mockup's table shows.** US-5.5 moved the glass
      DOWN to 488/489 so its cluster reads through it, and recorded 455 as
      what epic 6 stays under. Nothing built here may reach the glass.
+
+     **THE SCARE'S THREE LAYERS SHARE 455, AND SOURCE ORDER IS WHAT RANKS
+     THEM.** The mockup gives them three numbers -- 468 flash, 470 face,
+     472 spray -- and not one of them comes across, because all three are
+     above a ceiling that two stories have now recorded. Equal z-index in
+     one stacking context paints in tree order, so the markup's order IS
+     the stacking: flash before the face puts the glare BEHIND it, spray
+     after puts the blood OVER it. US-6.8 added the two outer layers by
+     placing them, not by numbering them.
 
      **28 is the tape, 26 is the glass, and the order between them is the
      point.** A handprint is something leaning ON the glass; the tracking
@@ -1170,8 +1181,14 @@
      itself; REMOVE EFFECTS sits at 490 and the highest rung here is 455, so
      the control reads THROUGH the dark and stays clickable. 455 is the
      epic-6 ceiling and this story takes it -- nothing later may go higher.
-     US-6.5 does not: it SHARES this rung and wins on tree order by being
-     the layer's last child, which is what US-6.1's Q3 reserved for it.
+     US-6.5 does not: it SHARES this rung and wins on tree order, which
+     is what US-6.1's Q3 reserved for it -- it still paints above these
+     eyes. (This line used to add "by being the layer's last child".
+     US-6.8 made that false. What replaced it is recorded in the spray's
+     block, which lists every site holding it; this line deliberately
+     does not say what it is, because saying it would make this a site
+     and that list incomplete. Other relative positions among the three
+     are not on that list -- the flash block states its own.)
      ──────────────────────────────────────────────────────────────────── */
   :root:not(.manor):not(.horror) .weather-cast{display:none}
   /* The group rule the two DRAWN rungs share, beside `#drift svg` and
@@ -1263,6 +1280,101 @@
      group. The silhouette needs no rule, so it carries no class. */
   .eyes svg{filter:drop-shadow(0 0 13px rgba(216,36,31,.95))}
 
+  /* ── THE FLASH (US-6.8) ─────────────────────────────────────────────
+     The first third of the impact: the glare the face arrives out of, so
+     it paints BEHIND the face.
+
+     🚨 WHAT MAKES IT PAINT BEHIND IS THE MARKUP, NOT THIS SHEET, and the
+     two orders are easy to confuse because this rule happens to come
+     first in both. Equal `z-index` in one stacking context paints in TREE
+     order, so moving the `<div>` is what re-ranks the layers; moving this
+     RULE would change nothing about the stacking. See the ladder in the
+     decoration block. The reason this rule is nonetheless written before
+     `.struck .flash` is unrelated and is the note just below it -- a test
+     finds a rule by its literal selector text.
+
+     🚨 PHOTOSENSITIVITY, AND THE MARGIN IS ONE FLASH. WCAG 2.3.1 fails
+     content that flashes MORE THAN THREE TIMES in any one-second period
+     over a large area, and this covers the whole viewport, so the area
+     test is maximal and only the count protects us. `blitz` has exactly
+     TWO bright peaks -- `.92` at 14.29% and `.6` at 38.10% -- and at
+     `.8s` both fall inside one second. Two against a limit of three.
+
+     🚨 THIS IS NOT THE ONLY ELEMENT IN EPIC 6 WITH A FLASH THRESHOLD TO
+     CLEAR, and US-6.8 said it was until someone measured. US-6.4's
+     `.storm` and `.blackout` (whose keyframes are `storm` and
+     `powercut`) are both `inset:0` and both multi-peak, both `infinite`,
+     and BOTH HAVE LESS ROOM THAN THIS ONE -- which fires at most once.
+     Neither was touched here and neither is cleared here: whether they
+     pass is an open question, with a worked measurement and a
+     recommended follow-up in US-6.8's notes, Q2.
+
+     🚨 THE ANALYSIS LIVES THERE AND DELIBERATELY NOT HERE. It was in
+     this block across several review rounds and was wrong every time --
+     among them a transition count, a pairing argument and a rise
+     number, twice inside a correction of the previous error. It
+     is an assessment of ANOTHER story's shipped keyframes, nothing in
+     this sheet depends on it, and no test can hold it true. One copy,
+     in the document that recommends acting on it. Do not restate it
+     here; re-derive from `@keyframes storm` and `@keyframes powercut`
+     if you need it.
+
+     WHAT "TIGHTENING" THIS WOULD SPEND, because the next person to touch
+     it will not re-derive the above: a THIRD peak spends the whole
+     margin. Shortening the duration does not -- `blitz` is a one-shot
+     and both peaks already fall in one window, so packing them closer
+     cannot raise a count of two.
+
+     HEIGHT IS A REAL LEVER, AND AN EARLIER DRAFT HERE SAID IT WAS NOT.
+     2.3.1 counts a pair of opposing changes only when it is **10% or
+     more of maximum relative luminance** with the darker side below
+     0.80; a pair under that floor is not a general flash and never
+     enters the count. So dimming is the move available to someone who
+     has been handed a third peak and cannot drop it -- take it under the
+     floor and there are still two. These two are nowhere near it, which
+     is why keeping the mockup's `.92` and `.6` verbatim costs nothing
+     and the margin is measured in COUNT.
+
+     The red flash threshold is a second, separate check and it also
+     passes, with less room than the first: a flash counts as red only
+     where R/(R+G+B) >= 0.80, and the reddest stop in the gradient,
+     `#8b0f1a`, is 139/180 = 0.772. Darkening that stop toward a purer red
+     would cross it.
+
+     The four mitigations this site already has protect a visitor who
+     ACTS; staying under the threshold is what protects the one who
+     leaves everything on, which is why the margin above is the number
+     that matters. US-6.8's notes, Q2, name the four and say the same.
+
+     The gradient lives in the rule and NOT in the keyframes -- a
+     `background` inside a keyframe repaints the whole viewport every
+     frame, which is the thing `test_the_strike_moves_nothing_a_phone_has_
+     to_repaint` forbids. Only `opacity` animates, so this stays a
+     compositor job at full-screen size.
+
+     It carries no `style=` -- there is one of it and it fills the
+     viewport, so it has nothing to vary. What it does NOT declare, and
+     why, is the AC 7 row in the markup comment.
+     ──────────────────────────────────────────────────────────────────── */
+  .flash{position:fixed; inset:0; z-index:455; opacity:0;
+         background:radial-gradient(circle at 50% 46%,#fff 0%,#ffb0b0 26%,#8b0f1a 62%,#000 100%)}
+  /* AFTER the base rule, for the reason US-6.5 recorded one block down: a
+     stylesheet test finds a rule by the literal `.flash{`, and
+     `.struck .flash{` contains it. Written first it would be found
+     instead, and a z-index assertion would read a rule that has none. */
+  .struck .flash{animation:blitz .8s linear}
+  /* Each stop is the mockup's `(mockup% - 66.4) / 4.2`, the conversion
+     US-6.5 established -- its 66.6%-70.4% window inside a 19s loop,
+     re-expressed as a one-shot of the same `.8s` as the face. */
+  @keyframes blitz{
+    0%,4.76%{opacity:0}
+    14.29%  {opacity:.92}
+    28.57%  {opacity:.18}
+    38.10%  {opacity:.6}
+    61.90%  {opacity:.08}
+    95.24%,100%{opacity:0}
+  }
+
   /* ── THE SCARE (US-6.5) ─────────────────────────────────────────────
      ONE strike per page load, and the page it happens to is the only one
      with a hero to measure. The mockup runs this on the same infinite 19s
@@ -1279,13 +1391,27 @@
      strikes (US-5.6's contract, lines 1 and 2).
 
      455, SHARED with `.in-dark`, and the tie is broken by TREE ORDER --
-     which is why the lunge is the LAST child of the layer. US-6.1's Q3
+     which is why the lunge sits after the eyes in the layer. US-6.1's Q3
      already placed it: "a scare (470 in the mockup, 455 here)". Equal
-     z-index in one stacking context paints in document order, so last
-     means the face arrives over the eyes rather than under them. It is
-     also why this takes no number of its own: 455 is the top rung and
-     four `.in-dark` elements already share it, so sharing a rung is this
-     layer's habit rather than a new idea.
+     z-index in one stacking context paints in document order, so coming
+     after them means the face arrives over the eyes rather than under
+     them. It is also why this takes no number of its own: 455 is the top
+     rung and four `.in-dark` elements already share it, so sharing a rung
+     is this layer's habit rather than a new idea.
+
+     🚨 THE FACE IS NO LONGER ALONE ON THIS RUNG, AND THAT IS US-6.8'S
+     DOING. It shipped the other two thirds of this impact, and all
+     three share the rung, so they are ranked by where they sit in the
+     markup and nowhere else. WHICH of them ends up last is owned by the
+     spray's block, which lists every site holding that fact; this block
+     deliberately does not say which, because saying it would make this
+     a site and that list incomplete. The list covers that one fact
+     ONLY: the flash block separately states that it paints behind the
+     face, which is its own to keep true.
+     (The paragraph above is a different subject and stays: it ranks the
+     face against the `.in-dark` EYES, which the spray's enumeration is
+     not about and which moving the spray cannot falsify.) For the three,
+     go there; do not reason from here.
 
      NOTHING HERE REPEATS WHAT THE CONTAINER SAYS -- no `pointer-events`,
      no `aria-hidden`, no OS-preference query. `horror-cast` is the gate
@@ -1314,6 +1440,82 @@
     52.4%{opacity:1;  transform:scale(2.05) translateY(4px)  rotate(-1deg)}
     76.2%{opacity:.9; transform:scale(2.45)}
     100% {opacity:0;  transform:scale(2.8)}
+  }
+
+  /* ── THE SPRAY (US-6.8) ─────────────────────────────────────────────
+     The last third of the impact, and it comes AFTER the face for the
+     same reason the flash comes before: blood lands ON the lens, so it
+     paints over everything the strike put there. It is the LAST child of
+     the layer now, and appending anything after this puts that thing over
+     the blood. 🚨 THAT FACT IS RECORDED IN EVERY SITE LISTED BELOW AND
+     NOWHERE ELSE, because it is the one a careless edit breaks silently:
+
+       the ladder in the decoration block
+       the markup comment above the three divs
+       this block
+       `test_the_impact_is_three_layers_in_one_order_outside_the_stage`
+           -- the only one that can FAIL rather than merely go stale
+
+     Move the spray and every line above needs updating. **This list
+     carries no count, deliberately**: three separate numbers in this
+     change rotted the moment another site was added or removed, so the
+     list is the list. Add a site, add a line. Blocks that merely POINT
+     here are not sites and must not name the fact -- if one does, it has
+     become a site and belongs above.
+
+     🚨 TRUNCATED TO THE FACE'S `.8s`, AND THAT WAS A DECISION RATHER THAN
+     AN OVERSIGHT. The mockup's `spray` runs 67.4%->86% of a 19s loop,
+     which is 3.534s -- the same `(mockup% - 66.4) / 4.2` conversion that
+     fits the flash into `.8s` sends this one to 466.67%, so the blood
+     would still be fading roughly 2.7 seconds after the face had gone.
+     The requester chose one beat over a lingering stain (US-6.8, unknown
+     1), so the window is cut at `.8s`. What that cut does to the mockup's
+     five stops is the paragraph below -- two survive unchanged and three
+     are rescaled, NOT dropped.
+
+     THE ALTERNATIVE WAS NOT FREE, which is why this is written down. A
+     3.5s spray cannot work on this trigger as it stands -- the script
+     takes `.struck` off at `ATTACK_MS` (800ms), so the animation would be
+     cancelled mid-fade and the blood would vanish in one frame instead of
+     thinning out. A lingering stain needs that timer extended, and the
+     timer is US-6.5's. Changing it is a scope decision, not a tweak.
+
+     THE TAIL IS COMPRESSED, NOT DISCARDED, and the difference is what
+     makes this read as blood. The two stops inside the window are the
+     conversion's own -- 67.4% -> 23.81% and 68.0% -> 38.10%. The three
+     past it are rescaled into what is left: the mockup's remaining 18
+     points (68 -> 86) map onto the remaining 61.90 converted points, a
+     factor of 61.90/18 = 3.4389, giving 72% -> 51.86%, 80% -> 79.37% and
+     86% -> 100%. Dropping them instead would leave a single linear fade
+     from full opacity, which reads as a red light going out rather than
+     as a spatter thinning. Only `opacity` and `transform` animate, so
+     this is a compositor job at full-screen size like the other two.
+
+     SIZING IS ONE DECLARATION, because `.horror-cast svg` already gives
+     `display:block; width:100%` and this reuses it. Only the height is
+     this element's own: the wrapper is `inset:0` and the artwork must
+     stretch to the full height of it, which `width:100%` alone will not
+     do. `preserveAspectRatio="none"` in the partial is what makes that
+     stretch legal rather than a crop -- one drawing covers 320px and a
+     desktop with no media query, which is the whole reason the attribute
+     is there.
+
+     Colour is the partial's, through `--blood`, declared in `.horror{}`
+     and read by an element wearing `horror-cast` -- the token is used
+     exactly where it is defined, so this story adds no token and no
+     fallback. No gate rule and no group rule either: `horror-cast` is
+     US-6.3's and wearing it is how this joins the world.
+     ──────────────────────────────────────────────────────────────────── */
+  .gore{position:fixed; inset:0; z-index:455; opacity:0}
+  .gore svg{height:100%}
+  /* AFTER the base rule, for the reason spelled out above the flash. */
+  .struck .gore{animation:spray .8s linear}
+  @keyframes spray{
+    0%,23.81%{opacity:0;   transform:scale(.7)}
+    38.10%   {opacity:.92; transform:scale(1.05)}
+    51.86%   {opacity:.78; transform:scale(1)}
+    79.37%   {opacity:.3}
+    100%     {opacity:0}
   }
 
   /* ── STILLNESS (US-5.5) ──────────────────────────────────────────────
@@ -1829,25 +2031,79 @@
   <div class="in-dark weather-cast scare" style="bottom:0; right:4%; --decor-size:300px">{% include "ui/decor/_looming.html" %}</div>
 
   {% comment %}
-    ── THE SCARE (US-6.5) ────────────────────────────────────────────────
-    🚨 ITS POSITION IN THIS FILE IS LOAD-BEARING, and that is the one thing
-    this comment is here to say. It is the LAST child of the layer, and it
-    must stay last: it shares rung 455 with the four `.in-dark` elements
-    above it, and equal z-index in one stacking context paints in tree
-    order. Last means the face arrives OVER the eyes. Append anything after
-    it and the face arrives under. The stylesheet block explains the rung.
+    ── THE SCARE (US-6.5, completed by US-6.8) ───────────────────────────
+    🚨 THE ORDER OF THESE THREE LINES IS LOAD-BEARING, and that is the one
+    thing this comment is here to say. All three share rung 455 with the
+    four `.in-dark` elements above them, and equal z-index in one stacking
+    context paints in TREE ORDER -- so the sequence below IS the stacking,
+    and there is no number anywhere that would tell you so:
 
-    It carries no `style=` and no timing, which makes it the one element on
-    the layer that is not data against a shared rule -- there is nothing to
-    vary, because there is exactly one of it and it fills the viewport. When
-    it strikes is not markup's business either: the script puts a class on
-    `<body>` and the stylesheet answers.
+      .flash   the glare the face arrives out of, so it paints BEHIND it
+      .lunge   the face, still over the eyes because it is still after them
+      .gore    what the strike leaves on the lens, so it paints OVER all
 
-    Two classes, both borrowed: `horror-cast` is US-6.3's world gate and
-    `scare` is US-5.6's switch hook. Wearing them is how this joins both,
-    which is why this story adds neither rule.
+    US-6.5 shipped the middle line alone and recorded that it was LAST and
+    must stay last. US-6.8 appended the spray, so that is no longer true
+    and the note has been corrected here, in the stylesheet, and in the
+    decoration block's ladder. What holds now: the SPRAY is last. Append
+    anything after it and that thing arrives over the blood; insert
+    anything before the flash and it arrives under the glare.
+
+    None of the three carries a `style=` or a timing, which makes them the
+    elements on this layer that are not data against a shared rule --
+    there is nothing to vary, because there is exactly one of each and
+    each fills the viewport. The flash carries no artwork either: it is a
+    radial gradient in the sheet and an empty div here. When they strike
+    is not markup's business: the script puts ONE class on `<body>` and
+    the stylesheet answers for all three at once.
+
+    Two classes each, both borrowed: `horror-cast` is US-6.3's world gate
+    and `scare` is US-5.6's switch hook. Wearing them is how these join
+    both, which is why neither story adds a rule for either -- and it is
+    what makes SCARES OFF stop all three together rather than leaving a
+    flash with no face behind it.
+
+    🚨 REMOVE EFFECTS IS NOT BOUGHT BY THESE TWO CLASSES, and anyone
+    adding a fourth layer should know which guarantee comes from where.
+    No `.no-motion` rule keys on `scare` or `horror-cast` at all:
+
+      the WORLD gate      the worn `horror-cast`, via
+                          `:root:not(.horror) .horror-cast` -- this is
+                          also what empties Just the Work, since that
+                          root is a `:not(.horror)` one
+      SCARES OFF          the worn `scare`, via `.no-scares .scare`
+      REMOVE EFFECTS      BOTH belts, and neither is this pair: the
+      and reduced motion  universal `.no-motion *{animation:none
+                          !important}` stops anything already running
+                          wherever it lives, and `.no-motion #decor`
+                          withdraws the container whatever its children
+                          wear
+
+      NO CLICK, NO        THE CONTAINER, AND NOTHING ELSE. `#decor`
+      SCREEN READER       carries `pointer-events:none` and
+      (AC 7)              `aria-hidden="true"`; all three layers
+                          deliberately declare neither, which is the
+                          whole of how they inherit it
+
+    🚨 SO THE LAST ROW IS THE ONE THAT BREAKS, AND IT BREAKS SILENTLY.
+    What separates it is NOT how many rules back it up -- SCARES OFF has
+    exactly one that reaches these three, `.no-scares .scare`, and needs
+    no more. It is whether the guarantee SURVIVES THE MOVE OUT of
+    `#decor`. The first three do, because none of them is addressed to
+    the container: the gate and the switch are WORN, so they travel on
+    the element itself, and the universal `.no-motion *` reaches it
+    wherever it sits. AC 7 is the one that cannot travel -- both
+    `pointer-events` and `aria-hidden` are INHERITED, from a parent the
+    element would no longer have. Such a layer would be a full-viewport
+    overlay that SWALLOWS CLICKS across the whole page and is ANNOUNCED
+    to a screen reader, and nothing in the sheet would catch it, because
+    the rule it needs is one it is no longer a child of. The shake is the
+    one effect that genuinely lives out here, and its own block records
+    the same fact: it has no `pointer-events:none` to inherit.
   {% endcomment %}
+  <div class="flash horror-cast scare"></div>
   <div class="lunge horror-cast scare">{% include "ui/decor/_lunge.html" %}</div>
+  <div class="gore horror-cast scare">{% include "ui/decor/_gore.html" %}</div>
 </div>
 
 {% comment %}

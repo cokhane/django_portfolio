@@ -2,9 +2,32 @@
 
 A separate module for the reason `test_storm.py` records: `test_decor.py` is
 the full one and sits three lines under pylint's `too-many-lines` ceiling, so
-each new story in epic 6 takes its own file. The story's Scope names
+each new story in epic 6 takes its own file. US-6.5's Scope names
 `tests.py`, which is the API and view suite; the per-story split is the newer
 decision and the one the repo follows.
+
+**US-6.8 landed here too, and its Scope named somewhere else.** It asks for
+`test_scares.py` / `test_effects.py`, and this change touches neither. The
+two layers it adds are driven by the SAME `struck` class as the face and
+share its rung, its gate and its switch hook -- so every assertion about
+them is an assertion about this module's subject, and splitting them across
+two files would have put one trigger's guarantees in three places. Those two
+modules already own what the Scope wanted from them, and both already cover
+the new layers WITHOUT NAMING THEM -- by different mechanisms, which is the
+part worth being precise about:
+
+  `test_scares.py`  the HOOK. It pins that suppression is two rules and not
+                    a creature list, and the rule is `.no-scares .scare`.
+                    The flash and the spray wear `scare`, so they are
+                    covered by WEARING it (US-6.8's AC 5).
+  `test_effects.py` the CONTAINER. It pins that stillness is exactly three
+                    rules, one of them `.no-motion #decor`, which withdraws
+                    every rung at once (US-6.8's AC 6 and AC 10).
+
+Neither needed a line added for this story, and adding one to either would
+have been the per-element list both tests exist to forbid. Recorded here
+because a reader checking that Scope line will otherwise think the AC was
+skipped.
 
 **What this module does NOT re-assert, and the one place that looks like an
 exception.** The overlay lives inside `#decor`, and containment is what makes
@@ -21,10 +44,37 @@ them here would be one more thing to keep in step, so there is none.
 
 The exception is `!important`, which IS checked here even though
 `test_decor.py` checks it too. That test filters by SELECTOR TEXT containing
-`decor` or `drift`, and none of this story's three selectors contains either
--- the overlay is inside the container in the DOM, not in the stylesheet. So
-the rules this story adds are skipped there, and this is first coverage
-rather than a second copy. The test says so itself.
+`decor` or `drift`, and NOT ONE of the selectors these two stories add
+contains either -- the `.lunge` family US-6.5 wrote, the `.flash` and
+`.gore` families US-6.8 added, the `.struck` trigger rule belonging to each
+of those three, and US-6.5's `.horror .struck .jolt`. Their rules are not
+inside the container in the stylesheet, so every one is skipped there and
+this is first coverage rather than a second copy. The test says so itself.
+
+**The shake is named separately on purpose.** `.horror .struck .jolt` is
+the one member that is NOT a decoration: it moves `#page`, the content, so
+it is not a child of `#decor` and the "inside the container" reasoning that
+covers the other families does not reach it. It is in the set anyway,
+because the set is "selectors this module must check for `!important`" and
+the filter that admits it is the `.struck` term -- not membership of the
+layer. Fold it into a family and the next reader will look for it inside
+`#decor` and not find it.
+
+**Deliberately no count here.** The sentence this replaced said "this
+story's three selectors" and was wrong twice over by the time anyone
+checked: it omitted `.lunge svg`, and US-6.8 then added five more. A number
+in this position has to be re-counted by hand on every change to the sheet
+and silently rots when it is not, which is the whole failure this module
+spends its prose guarding against. The families are what the reader needs;
+`test_no_rule_this_story_adds_forces_its_way_past_a_preference` is what
+enumerates the actual rules, from the sheet, every time it runs.
+
+**A NOTE ON `AC n` IN THIS FILE, because two stories' criteria now meet in
+it.** An unqualified `AC n` is US-6.5's, which is the convention this module
+was written under. Every criterion belonging to US-6.8 is written `US-6.8's
+AC n` instead -- the numbers collide between the two stories (each one's
+`AC 7` is a different promise), so the qualifier is what keeps a citation
+readable rather than merely present.
 
 **What a Django render cannot see, and why the by-hand pass is the real gate.**
 Everything below is markup, script SOURCE and stylesheet text. No test here
@@ -58,7 +108,12 @@ from .test_decor import (
 from .test_effects import LAYER_ID, _z
 from .test_preferences import _inline_script, _render_every_page
 from .test_storm import _keyframes
-from .test_theme import _colour_literals, _declaration_block, _sections
+from .test_theme import (
+    _colour_literals,
+    _declaration_block,
+    _sections,
+    _stylesheet,
+)
 from .tests import AVAILABILITY, PROJECTS, SKILLS
 
 # The overlay, the shake hook it is paired with, and the class the script puts
@@ -68,6 +123,20 @@ from .tests import AVAILABILITY, PROJECTS, SKILLS
 LUNGE = "lunge"
 SHAKE = "jolt"
 STRIKE = "struck"
+
+# US-6.8's two outer thirds of the same impact. They are worn statically and
+# are governed by the SAME `struck` class -- one trigger, three layers, which
+# is why they are tested here beside the face rather than in a module of their
+# own. The ORDER of this tuple is the order they must appear in the markup,
+# and that order is the only thing ranking them: all three share rung 455.
+FLASH = "flash"
+GORE = "gore"
+IMPACT = (FLASH, LUNGE, GORE)
+
+# The keyframe set each layer runs. Four animations, ONE attack length.
+BLITZ = "blitz"
+SPRAY = "spray"
+ATTACKERS = (LUNGE, SHAKE, BLITZ, SPRAY)
 
 # The hero, and the only reason the home page is distinguishable from the
 # other two renders of `base.html` without a server-side page flag.
@@ -82,7 +151,11 @@ GRACE_MS = 19000
 ATTACK_MS = 800
 
 # The attack's length wherever a rule declares it -- `animation:lunge .8s`.
-ATTACK = re.compile(r"animation:(?:lunge|jolt) (\.\d+)s")
+# US-6.8 widened the alternation from two names to four rather than leaving
+# its own two unchecked: `animation:blitz` never matched this pattern, so the
+# count-of-two assertion below would have passed while the flash and the spray
+# drifted freely away from the face they are supposed to land with.
+ATTACK = re.compile(rf"animation:(?:{'|'.join(ATTACKERS)}) (\.\d+)s")
 
 # A property name at the head of a declaration, for reading a keyframe's set.
 PROPERTY = re.compile(r"([a-z-]+):")
@@ -136,17 +209,24 @@ class LungeMarkupTests(SimpleTestCase):
         """The home page's HTML, for a world or for the default."""
         return self.client.get(reverse("ui:home"), params or {}).content.decode()
 
-    def test_the_lunge_is_the_last_thing_in_the_layer_and_outside_the_stage(
+    def test_the_impact_is_three_layers_in_one_order_outside_the_stage(
         self, *_mocks
     ):
-        """AC 5 and decision A: tree order is what breaks the tie at 455.
+        """US-6.5's AC 5 and US-6.8's AC 2 -- tree order breaks the tie at 455.
 
-        Three assertions, and the third is the one that is easy to lose. The
-        overlay shares its z-index with the four `.in-dark` elements, so the
-        CSS cannot decide which paints on top -- document order does, and
-        last wins. A later story appending one more rung to this container
-        would silently move the face UNDER the eyes it is supposed to arrive
-        over, and nothing about the stylesheet would look wrong.
+        All three layers share their z-index with each other AND with the
+        four `.in-dark` elements, so the CSS cannot decide which paints on
+        top -- document order does, and later wins. That makes the SEQUENCE
+        the design: the flash is the glare the face arrives out of, so it
+        goes behind; the spray is what the strike leaves on the lens, so it
+        goes over. Written in any other order the stylesheet still looks
+        entirely correct and the scare is wrong.
+
+        🚨 US-6.5 ASSERTED THAT THE FACE WAS LAST, AND US-6.8 MADE THAT
+        FALSE. This test was rewritten rather than relaxed: what replaced
+        the old `assertNotIn("<div", ...)` is the same guarantee moved to
+        the element that now holds it -- the SPRAY is last, so appending a
+        rung still cannot slip under the blood unnoticed.
 
         Outside `#drift` for the reason US-6.3's band records: the stage is a
         stacking context at `z-index:0`, so nothing inside it can paint above
@@ -155,39 +235,90 @@ class LungeMarkupTests(SimpleTestCase):
         """
         page = self._home()
         layer = _element(page, LAYER_ID)
+        stage = _element(page, STAGE_ID)
+        at = {}
 
-        self.assertEqual(layer.count(f'class="{LUNGE} '), 1)
-        self.assertNotIn(f'class="{LUNGE} ', _element(page, STAGE_ID))
-        opening = layer.index(f'class="{LUNGE} ')
+        for layer_name in IMPACT:
+            with self.subTest(layer=layer_name):
+                self.assertEqual(layer.count(f'class="{layer_name} '), 1)
+                self.assertNotIn(f'class="{layer_name} ', stage)
+            at[layer_name] = layer.index(f'class="{layer_name} ')
+        self.assertEqual(sorted(at, key=at.get), list(IMPACT))
         for revealed in IN_DARK.finditer(layer):
             with self.subTest(after=revealed.start()):
-                self.assertGreater(opening, revealed.start())
-        self.assertNotIn("<div", layer[layer.index(">", opening):])
+                self.assertGreater(at[FLASH], revealed.start())
+        self.assertNotIn("<div", layer[layer.index(">", at[GORE]):])
 
-    def test_the_lunge_wears_the_gate_and_the_hook_and_carries_no_data(self, *_mocks):
-        """AC 1, AC 7 and AC 8: two classes do all the governing.
+    def test_each_layer_wears_the_gate_and_the_hook_and_carries_no_data(
+        self, *_mocks
+    ):
+        """US-6.8's AC 1 and AC 5. AC 6 and AC 7 are NOT this method's.
 
         `horror-cast` is the world gate, REUSED -- so Found Footage alone
         renders it, and Arcade, Manor and Just the Work are answered by one
         rule that already existed. `scare` is US-5.6's switch hook, so the
         switch governs this without a rule of its own.
 
-        It carries no `style=` at all, which makes it the one element on the
-        layer that is not data against a shared rule. There is nothing to
-        vary: there is exactly one of it and it fills the viewport. WHEN it
-        strikes is not markup's business either -- that is a class the script
-        puts on `<body>`, so no timing may appear here.
+        **ALL THREE wear the SAME pair, and that is US-6.8's AC 5 in the
+        markup.** A flash that wore the gate but not the hook would still
+        fire with scares off -- a white blast with no face behind it, which
+        is a worse experience than the scare it was meant to replace. The
+        switch reaching all three is a property of what they WEAR, so it is
+        asserted here on every one of them rather than once on the face.
+
+        🚨 **US-6.8's AC 6 IS NOT ASSERTED HERE, because wearing these does
+        not buy it.** No `.no-motion` rule keys on `scare` or `horror-cast`
+        at all. REMOVE EFFECTS is the stillness block -- the three rules
+        `test_effects.py` pins: a universal `animation:none`, one rule
+        carrying both `body::before` and `body::after`, and
+        `.no-motion #decor`. Not one of them looks at what an element
+        wears. That guarantee belongs to `test_effects.py`, which owns the
+        whole block, and this method would pass unchanged if every rule in
+        it were deleted. Citing US-6.8's AC 6 here would point the next
+        reader at the wrong mechanism -- and writing it BARE would point
+        them at US-6.5's AC 6, the promise about focus, which belongs to
+        another test in this file entirely.
+
+        🚨 **US-6.8's AC 7 IS NOT THIS METHOD'S EITHER, and the reason is
+        worth spelling out because the obvious reading is wrong.** Its three
+        promises have three different owners, and none of them is the pair
+        asserted below:
+
+          takes no CLICK     `#decor{pointer-events:none}`, inherited
+          is not ANNOUNCED   `aria-hidden` on `#decor`, over its subtree
+          takes no FOCUS     NEITHER of those. `aria-hidden` does not
+                             remove anything from the tab order, and
+                             `pointer-events` has nothing to do with
+                             focus -- `test_keyboard.py` says so in those
+                             words. It is per-element: a plain `<div>`
+                             with no `tabindex`, and `focusable="false"`
+                             on every `<svg>`, which `test_keyboard.py`
+                             and `test_decor.py` pin across the whole
+                             container on all three pages.
+
+        So the container buys two of the three and the markup buys the
+        third, and `base.html`'s own ladder row is labelled "NO CLICK, NO
+        SCREEN READER" for exactly that reason -- it leaves focus out on
+        purpose. Nothing below asserts any of the three.
+
+        What IS below is this method's own subject: none of the three
+        carries a `style=` or a timing, which makes them the elements on
+        the layer that are not data against a shared rule. There is nothing
+        to vary -- there is exactly one of each and each fills the viewport
+        -- and WHEN they strike is a class the script puts on `<body>`, so
+        no timing may appear here either.
         """
         layer = _element(self._home(), LAYER_ID)
-        start = layer.index(f'class="{LUNGE} ')
-        opening = layer[start:layer.index(">", start)]
 
-        for worn in (HORROR_CAST, SCARE_HOOK):
-            with self.subTest(worn=worn):
-                self.assertIn(worn, CLASS_ATTR.match(opening).group(1).split())
-        for absent in ("style=", "animation", "tabindex", "role="):
-            with self.subTest(absent=absent):
-                self.assertNotIn(absent, opening)
+        for layer_name in IMPACT:
+            start = layer.index(f'class="{layer_name} ')
+            opening = layer[start:layer.index(">", start)]
+            for worn in (HORROR_CAST, SCARE_HOOK):
+                with self.subTest(layer=layer_name, worn=worn):
+                    self.assertIn(worn, CLASS_ATTR.match(opening).group(1).split())
+            for absent in ("style=", "animation"):
+                with self.subTest(layer=layer_name, absent=absent):
+                    self.assertNotIn(absent, opening)
         self.assertEqual(_colour_literals(layer), [])
 
     def test_the_page_wears_the_shake_hook_on_every_page(self, *_mocks):
@@ -223,11 +354,16 @@ class LungeMarkupTests(SimpleTestCase):
         The same reconciliation `test_storm.py` reached for the same reason,
         and it is recorded in both places because a reader meeting either
         test alone would otherwise think the AC had been skipped.
+
+        US-6.8's AC 9 asks the same of its two layers in the same words, so
+        it is answered the same way and in the same loop.
         """
-        for world in (HORROR, CLEAN):
-            with self.subTest(world=world):
+        for world, layer_name in product((HORROR, CLEAN), IMPACT):
+            with self.subTest(world=world, layer=layer_name):
                 layer = _element(self._home({THEME_PARAM: world}), LAYER_ID)
-                self.assertIn(f'class="{LUNGE} {HORROR_CAST} {SCARE_HOOK}"', layer)
+                self.assertIn(
+                    f'class="{layer_name} {HORROR_CAST} {SCARE_HOOK}"', layer
+                )
 
     def test_only_the_home_page_has_a_hero_to_arm_on(self, *_mocks):
         """AC 7: the detail page is exempt, and this is how the script knows.
@@ -444,13 +580,23 @@ class LungeStylesheetTests(SimpleTestCase):
         the scare -- "470 in the mockup, 455 here" -- and 455 is already
         shared by four elements, so sharing a rung is this layer's habit
         rather than a new idea. The markup test above owns the tie-break.
+
+        **US-6.8's AC 2: all THREE layers take one number, which is what makes
+        the markup's order load-bearing.** The mockup ranks them 468 / 470 /
+        472 and not one of those survives the ceiling. Asserting equality
+        across the three is what stops the next reader "fixing" the stacking
+        with a number -- the moment one of them differs, tree order stops
+        being the mechanism and the markup test above starts guarding
+        nothing.
         """
         css = self._sheet()
 
-        self.assertEqual(_z(css, f".{LUNGE}"), CEILING)
-        self.assertEqual(_z(css, f".{LUNGE}"), _z(css, ".in-dark"))
+        for layer_name in IMPACT:
+            with self.subTest(layer=layer_name):
+                self.assertEqual(_z(css, f".{layer_name}"), CEILING)
+                self.assertEqual(_z(css, f".{layer_name}"), _z(css, ".in-dark"))
+                self.assertLess(_z(css, f".{layer_name}"), CONTROL_RUNG)
         self.assertEqual(_z(css, "#site-controls"), CONTROL_RUNG)
-        self.assertLess(_z(css, f".{LUNGE}"), CONTROL_RUNG)
 
     def test_the_overlay_reuses_found_footage_s_gate_and_its_sizing(self, *_mocks):
         """AC 1 and AC 11: this story adds neither a gate rule nor a group rule.
@@ -458,24 +604,35 @@ class LungeStylesheetTests(SimpleTestCase):
         `test_found_footage.py` pins that exactly ONE rule withdraws that
         world's cast, and the whole value of a marker class is that a new
         element joins the gate by WEARING it rather than by somebody
-        remembering a rule. So no selector here may name the overlay and a
-        `:not(` together, and the overlay declares no width of its own --
-        `.horror-cast svg` sizes it, which is what carries the phone scale
-        down with everything else.
+        remembering a rule. So no selector here may name one of the three
+        and a `:not(` together, and neither overlay declares a width of its
+        own -- `.horror-cast svg` sizes them, which is what carries the
+        phone scale down with everything else.
 
-        The ordering assertion is a trap this file set for itself.
-        `_declaration_block` finds a rule by the literal `.lunge{`, and
-        `.struck .lunge{` CONTAINS that text -- written first it would be
-        found instead, and the z-index assertion above would silently be
-        reading the trigger rule, which has no z-index at all.
+        **The gate half is asserted for all THREE layers, not just the
+        face.** US-6.8 added two more elements to this world, and a gate
+        rule written for either of them would be exactly the per-element
+        list this test exists to forbid -- checking only the face would
+        leave two thirds of the scare unguarded.
+
+        The ordering half of this test MOVED OUT rather than growing: it is
+        the same trap for all three layers now, so it belongs to
+        `test_each_base_rule_is_written_before_the_trigger_that_contains_it`
+        below, which owns it for `.flash`, `.lunge` and `.gore` together.
+        Asserting it here too would give one guarantee two owners, and this
+        file's own rule (see the attack-length test) is that there is
+        exactly one owner of an equality.
         """
         css = self._sheet()
 
-        gating = [part for part in css.split("{") if LUNGE in part and ":not(" in part]
-        self.assertEqual(gating, [])
-        self.assertNotIn("width", _declaration_block(css, f".{LUNGE} svg"))
-        self.assertIn(f".{STRIKE} .{LUNGE}{{", css)
-        self.assertLess(css.index(f".{LUNGE}{{"), css.index(f".{STRIKE} .{LUNGE}{{"))
+        for layer_name in IMPACT:
+            with self.subTest(layer=layer_name):
+                gating = [part for part in css.split("{")
+                          if layer_name in part and ":not(" in part]
+                self.assertEqual(gating, [])
+        for sized in (LUNGE, GORE):
+            with self.subTest(layer=sized):
+                self.assertNotIn("width", _declaration_block(css, f".{sized} svg"))
 
     def test_the_shake_exists_only_in_the_world_that_has_a_face(self, *_mocks):
         """Decision D as code: three worlds are answered by ABSENCE.
@@ -504,22 +661,31 @@ class LungeStylesheetTests(SimpleTestCase):
         self.assertNotIn(f".{SHAKE}{{animation:{SHAKE}", sections["base"])
 
     def test_the_attack_is_one_length_wherever_it_is_written(self, *_mocks):
-        """The duration appears three times, and a drift would desynchronise it.
+        """The duration appears five times, and a drift would desynchronise it.
 
-        Twice in CSS -- the face and the shake are ONE attack and must start
-        and end together, the way US-6.4's two rungs share `13s` -- and once
-        in the script, which cannot read a CSS value and must know when to
-        take the trigger class off again. Three copies is the cost of there
-        being no way for JavaScript to ask a stylesheet how long a rule runs.
+        Four times in CSS -- the flash, the face, the spray and the shake
+        are ONE attack and must start and end together, the way US-6.4's two
+        rungs share `13s` -- and once in the script, which cannot read a CSS
+        value and must know when to take the trigger class off again. Five
+        copies is the cost of there being no way for JavaScript to ask a
+        stylesheet how long a rule runs.
 
         So the test is the single owner of the equality. A shake left running
         after the face has gone is the exact failure this catches, and on a
         page it would read as the site breaking rather than as a scare.
+
+        🚨 THE SCRIPT'S COPY IS A CEILING ON THE OTHER FOUR, not merely a
+        twin of them, and that is why US-6.8's spray is `.8s` and not the
+        mockup's 3.534s. `unstrike` removes `struck` at `ATTACK_MS`, which
+        CANCELS any rule still running -- a longer animation would not play
+        on past the face, it would vanish in one frame. The story's unknown
+        1 was decided on exactly this: a lingering stain is a change to the
+        trigger, not to a keyframe, and the trigger is out of its scope.
         """
         css = self._sheet()
         lengths = ATTACK.findall(css)
 
-        self.assertEqual(len(lengths), 2)
+        self.assertEqual(len(lengths), len(ATTACKERS))
         self.assertEqual(len(set(lengths)), 1)
         self.assertEqual(float(lengths[0]) * 1000, ATTACK_MS)
 
@@ -536,16 +702,121 @@ class LungeStylesheetTests(SimpleTestCase):
         Asserted over the keyframes rather than the rules, because the rules
         legitimately declare a `filter` -- that is the static half, and the
         phone rule withdraws it.
+
+        🚨 THE FLASH IS THE ONE THIS MATTERS MOST FOR, and it is the one
+        most likely to be broken by a well-meaning edit. Its whole effect IS
+        a background -- a full-viewport radial gradient -- so animating that
+        background is the obvious way to write it and would repaint every
+        pixel on the screen every frame. It is declared ONCE in the static
+        rule and only `opacity` moves, which is the difference between a
+        scare and a stutter on a phone.
+        """
+        css = self._sheet()
+        moves = {LUNGE: {"opacity", "transform"}, SHAKE: {"transform"},
+                 BLITZ: {"opacity"}, SPRAY: {"opacity", "transform"}}
+
+        for keyframes, expected in moves.items():
+            with self.subTest(keyframes=keyframes):
+                self.assertEqual(
+                    set(PROPERTY.findall(_keyframes(css, keyframes))), expected
+                )
+        for keyframes, banned in product(ATTACKERS, REPAINTS):
+            with self.subTest(keyframes=keyframes, banned=banned):
+                self.assertNotIn(banned, _keyframes(css, keyframes))
+
+    def test_each_base_rule_is_written_before_the_trigger_that_contains_it(
+        self, *_mocks
+    ):
+        """The selector-order trap US-6.5 recorded, now pinned for all three.
+
+        `_declaration_block` anchors on `selector{` and takes the FIRST
+        occurrence. `.struck .flash{` contains the literal `.flash{`, so a
+        trigger rule written above its base rule is what every lookup finds
+        -- and the rung assertion above would then read a rule that declares
+        no `z-index` at all and fail with a message about the wrong thing.
+
+        US-6.5 hit this with `.lunge` and left both a comment and an
+        assertion of its own, which lived in
+        `test_the_overlay_reuses_found_footage_s_gate_and_its_sizing`.
+        US-6.8 inherited the same trap twice over, so that assertion was
+        MOVED here and generalised rather than copied -- three layers with
+        one trap between them want one owner, and leaving the original in
+        place would have meant a future change to this convention failing
+        in two tests and being half-fixed in one.
         """
         css = self._sheet()
 
-        self.assertEqual(
-            set(PROPERTY.findall(_keyframes(css, LUNGE))), {"opacity", "transform"}
-        )
-        self.assertEqual(set(PROPERTY.findall(_keyframes(css, SHAKE))), {"transform"})
-        for keyframes, banned in product((LUNGE, SHAKE), REPAINTS):
-            with self.subTest(keyframes=keyframes, banned=banned):
-                self.assertNotIn(banned, _keyframes(css, keyframes))
+        for layer_name in IMPACT:
+            with self.subTest(layer=layer_name):
+                self.assertLess(
+                    css.index(f".{layer_name}{{"),
+                    css.index(f".{STRIKE} .{layer_name}{{"),
+                )
+
+    def test_the_spray_is_stretched_to_the_viewport_and_not_sized_by_a_query(
+        self, *_mocks
+    ):
+        """US-6.8's AC 11: one drawing covers 320px and a desktop, no query.
+
+        `.horror-cast svg{display:block; width:100%}` already exists and is
+        REUSED, so the only declaration this story owes is the height -- the
+        wrapper is `inset:0` and `width:100%` alone would leave the artwork
+        at its intrinsic aspect ratio partway down the screen.
+
+        **The absence of a `width` here is NOT asserted in this method**,
+        although it is the natural other half of the sentence above.
+        `test_the_overlay_reuses_found_footage_s_gate_and_its_sizing` makes
+        that check for `.lunge` and `.gore` together, which is the right
+        home for it: the claim is "neither layer re-declares what the group
+        rule already gives", and that is one guarantee about two elements
+        rather than a fact about the spray. Asserting it here as well would
+        give it two owners -- the same duplication that method's own
+        docstring records giving up the ordering assertion to avoid.
+
+        The other half of that AC is `preserveAspectRatio="none"` in the
+        partial, which is what makes the stretch a stretch rather than a
+        crop. Asserted on the markup because that is where it lives.
+        """
+        own = _declaration_block(self._sheet(), f".{GORE} svg")
+        artwork = _element(self.client.get(reverse("ui:home")).content.decode(),
+                           LAYER_ID)
+
+        self.assertIn("height:100%", own)
+        self.assertIn('preserveAspectRatio="none"', artwork)
+
+    def test_the_flash_records_the_photosensitivity_margin_it_spends(
+        self, *_mocks
+    ):
+        """US-6.8's AC 4: the flash's margin, written down and pinned.
+
+        🚨 THIS TEST ASSERTS A COMMENT, WHICH IS UNUSUAL AND DELIBERATE. The
+        margin is one flash: WCAG 2.3.1 fails content flashing MORE THAN
+        THREE times in any one-second period over a large area, `blitz` has
+        exactly two bright peaks, and the whole animation is `.8s` so both
+        fall inside one second. Nothing about the keyframes SAYS that. A
+        later story tightening the timing or adding a third peak would be
+        making a safety decision while believing it was making a taste one,
+        and the only thing that can stop it is prose sitting beside the
+        numbers.
+
+        So the prose is load-bearing here in a way it is not elsewhere in
+        this sheet, and that is what earns it an assertion. Read from the
+        RAW stylesheet, because `_css` strips exactly what this is checking.
+
+        The peak count is asserted too, from the keyframes themselves, so
+        the comment cannot drift away from the thing it describes: if a
+        third peak is ever added, this fails even if the prose is updated to
+        match it.
+        """
+        page = self.client.get(reverse("ui:home")).content.decode()
+        raw = _stylesheet(page).lower()
+        peaks = [float(f".{found}") for found in
+                 re.findall(r"opacity:\.(\d+)", _keyframes(_css(page), BLITZ))]
+
+        self.assertEqual(len([peak for peak in peaks if peak > 0.5]), 2)
+        for recorded in ("2.3.1", "three times", "one-second", "0.772"):
+            with self.subTest(records=recorded):
+                self.assertIn(recorded, raw)
 
     def test_no_rule_this_story_adds_forces_its_way_past_a_preference(self, *_mocks):
         """US-5.6's contract line 3: `!important` is the one thing that would
@@ -560,10 +831,20 @@ class LungeStylesheetTests(SimpleTestCase):
         🚨 **This is NOT the duplicate it looks like.** `test_decor.py`'s
         `test_the_layer_forces_no_motion_property` makes the same check, but
         it filters rules whose SELECTOR TEXT contains `decor` or `drift` --
-        and every selector this story adds (`.lunge`, `.struck .lunge`,
-        `.horror .struck .jolt`) contains neither, so all three are skipped
-        there. The overlay is inside `#decor` in the DOM; its rules are not
-        inside it in the stylesheet, and that test reads the stylesheet.
+        and NOT ONE selector either story adds contains either, so every one
+        of them is skipped there. The layers are inside `#decor` in the DOM;
+        their rules are not inside it in the stylesheet, and that test reads
+        the stylesheet. So this is first coverage, not a second copy.
+
+        **The set is named by FAMILY and never by count**, for the reason
+        the module docstring gives: the `.lunge` family US-6.5 wrote, the
+        `.flash` and `.gore` families US-6.8 added, the `.struck` trigger
+        rule belonging to each of those three, and US-6.5's
+        `.horror .struck .jolt`, which the `STRIKE` term admits even though
+        it belongs to no layer -- it moves `#page`, not the decoration.
+        The loop below is what enumerates them: `IMPACT` is what admits a
+        new LAYER and `STRIKE` is what admits a new trigger rule, so there
+        is no list here to fall out of step with the sheet.
 
         `animation-delay` is deliberately NOT checked here: `test_decor.py`
         bans it across the WHOLE sheet in one assertion, which is strictly
@@ -572,6 +853,6 @@ class LungeStylesheetTests(SimpleTestCase):
         css = self._sheet()
 
         for rule in css.split("}"):
-            if any(f".{name}" in rule for name in (LUNGE, STRIKE)):
+            if any(f".{name}" in rule for name in (*IMPACT, STRIKE)):
                 with self.subTest(rule=rule.strip()[:60]):
                     self.assertNotIn("!important", rule)
