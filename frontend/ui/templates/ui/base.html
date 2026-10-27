@@ -572,7 +572,8 @@
 
        drifting cast `#drift`            0      <- this story ships this one
        page content `#page`              1
-       things on the glass              26      <- mist (US-6.2), handprints (US-6.3)
+       things on the glass              26      <- mist (US-6.2), handprints (US-6.3),
+                                                   splatter (US-6.9)
        the tape's tracking band         28      <- US-6.3
        blood pool · ceiling band       399 · 400
        storm · bolt                    440 · 441
@@ -967,7 +968,8 @@
 
   /* Rung 26, the same one `#mist` takes. They never co-render -- mist is
      Manor's and these are this world's -- so the shared number costs
-     nothing and keeps "things on the glass" one rung rather than two. */
+     nothing and keeps "things on the glass" one rung rather than two.
+     US-6.9's splatter is the third to take it, on the same argument. */
   .hand{position:fixed; z-index:26; opacity:.34;
         width:calc(120px * var(--decor-scale,1));
         animation:seep 9s ease-out infinite alternate}
@@ -986,6 +988,39 @@
               rgba(216,214,206,.05) 45%,rgba(216,214,206,.09) 50%,transparent);
             animation:track 7s linear infinite}
   @keyframes track{0%{top:-70px}100%{top:100%}}
+
+  /* Blood on the glass (US-6.9), the third thing on rung 26.
+
+     🚨 PINNED TO THE CONTENT COLUMN, NOT THE VIEWPORT, AND THAT IS THE A1
+     ANSWER. This rung paints OVER the work, so a splat at a VIEWPORT corner
+     lands on text at any width where the column reaches the edge -- and no
+     visible opacity repairs that on this palette, because `--blood` is
+     brighter than `--panel` and the overlay squeezes the ratio from both
+     ends. The story's Q3 has the measured table; the short version is that
+     the mockup's `.5` puts body text under AA, so PLACEMENT is the lever
+     and opacity is left at the drawn value.
+
+     `--gutter` IS that placement, written once and read by all three: half
+     the 1152px column (`max-w-6xl`), less the instance's own box, less
+     whatever its rotation's bounding box adds. The ink then stops ON the
+     column edge at EVERY width -- wider screens open a bigger gutter,
+     narrower ones slide the splat off, and it is gone by 1152px with no
+     breakpoint to maintain. `50%` resolves against the viewport because
+     `#decor` is unpositioned: US-6.1's rule doing load-bearing work rather
+     than merely being obeyed. Each instance declares only its OWN two
+     numbers, so resizing one re-derives its own placement instead of
+     stranding it on the words.
+
+     `--decor-scale` is inert here -- the splats are off-screen well before
+     560px -- and kept so this is not the one rung that cannot shrink if the
+     pin is ever relaxed. A scale that DID bite would need the offsets
+     re-derived, because `--gutter` subtracts the unscaled box.
+
+     Nothing animates, and no rule names the artwork: `.horror-cast svg`
+     sizes it, and `test_decor.py` pins that rule set at exactly three. */
+  .splat{position:fixed; z-index:26; opacity:.5;
+         --gutter:calc(50% - 576px - var(--decor-size,0) - var(--splat-turn,0px));
+         width:calc(var(--decor-size,0) * var(--decor-scale,1))}
 
   /* ── FOUND FOOTAGE'S STALKERS AND THEIR KILLS (US-6.7) ───────────────
      The two slots the cycle was built around and nobody filled. US-6.1 cut
@@ -2000,6 +2035,26 @@
   <div class="hand horror-cast" style="bottom:24px; right:30px; transform:rotate(14deg)">{% include "ui/decor/_hand.html" %}</div>
   <div class="hand horror-cast under-nav" style="left:26px; transform:translateY(60px) rotate(-168deg) scale(.8)">{% include "ui/decor/_hand.html" %}</div>
   <div class="tracking horror-cast"></div>
+
+  {% comment %}
+    Blood on the glass (US-6.9). ONE drawing included three times -- the
+    mockup's three PLACEMENTS, not its nine splatters: those are generated
+    and no two are the same shape, so reusing one costs nothing nobody can
+    see. Siblings of the stage for the reason the band above records.
+
+    Each declares only ITS OWN two numbers -- `--decor-size`, its box, and
+    `--splat-turn`, the half-width its rotation's bounding box adds -- and
+    reads its position from `--gutter`, which the stylesheet derives from
+    both. Nobody writes a placement here, so resizing or re-angling one
+    re-derives its own offset instead of stranding it over the words.
+
+    THE FIRST WEARS `under-nav` AND DROPS THE MOCKUP'S `top:-18px`, because
+    this rung paints over the nav and that lift is 18px of blood on the
+    brand. Same class and same single home the upper handprint uses.
+  {% endcomment %}
+  <div class="splat horror-cast under-nav" style="right:var(--gutter); --decor-size:190px">{% include "ui/decor/_splat.html" %}</div>
+  <div class="splat horror-cast" style="bottom:-22px; left:var(--gutter); --decor-size:150px; --splat-turn:14px; transform:rotate(168deg)">{% include "ui/decor/_splat.html" %}</div>
+  <div class="splat horror-cast" style="top:38%; left:var(--gutter); --decor-size:110px; --splat-turn:6px; transform:rotate(96deg); opacity:.32">{% include "ui/decor/_splat.html" %}</div>
 
   {% comment %}
     ── THE STORM AND THE POWER CUT (US-6.4) ──────────────────────────────
