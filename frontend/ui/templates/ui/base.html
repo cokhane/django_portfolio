@@ -1720,6 +1720,39 @@
   .horror .btn[aria-pressed="true"],.horror .btn.btn-primary{background:var(--neon); border-color:var(--neon); color:#e8e4da}
   .horror body::before{background:repeating-linear-gradient(0deg,rgba(0,0,0,.34) 0 1px,transparent 1px 3px)}
   .horror body::after{background:radial-gradient(ellipse at center,transparent 38%,rgba(0,0,0,.9) 100%)}
+  /* Found Footage's half of the same promise, and the counterpart to
+     `.manor .lantern` above: this world's one piece of atmosphere that is
+     NOT in the decoration layer. A tape losing signal rather than a candle
+     guttering -- slower (5.5s against Manor's 4.2s) and deeper (down to
+     .72 against .86). The two are not interchangeable and neither should
+     be retimed to match the other.
+
+     It is on the WORD, not the heading. `lantern` takes the whole `<h1>`
+     and this takes the `<span>` around SOLUTION, because pulsing
+     "SOLUTION ARCHITECT" entire is a different effect. Both classes sit on
+     that one heading and never run together -- one is gated to `.manor`,
+     the other to `.horror` -- so neither is redundant and neither should
+     be tidied away.
+
+     Horror-only by selector, so no other world needs a rule to switch it
+     off. REMOVE EFFECTS and reduced motion both reach it through the
+     universal `.no-motion *{animation:none !important}` in the stillness
+     block -- NOT through `.no-motion #decor`, which cannot see it: this
+     element is in the page, not on the layer.
+
+     🚨 THE CONTRAST HERE IS HELD BY A FONT SIZE, NOT BY A COLOUR. At the
+     .72 trough `--lit` composites to #9b5347 over this world's --void:
+     3.53:1, under AA's 4.5 and over AA-large's 3.0. The hero is
+     `text-2xl sm:text-4xl`, so below 640px it renders at 24px -- exactly
+     WCAG's 18pt large-text threshold -- which makes AA-large the bar that
+     applies, and the trough clears it by 0.53. Drop the hero under 24px
+     and the bar becomes 4.5:1, which this trough FAILS; the lever is then
+     the trough (.72 would have to rise to about .85), never deleting the
+     pulse. US-7.1 bought this headroom: against the #a82020 it replaced,
+     at 2.74:1, the pulse would have driven an already-failing colour
+     lower. */
+  .horror .breathe{animation:breathe 5.5s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:1}50%{opacity:.72}}
   /* US-6.5's other half, and the one decoration in this codebase that is NOT
      on the decoration layer. The shake moves `#page` -- the CONTENT -- so
      every guarantee the layer hands its rungs for free is missing here: no
